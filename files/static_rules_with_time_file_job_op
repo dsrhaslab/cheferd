@@ -1,0 +1,6 @@
+1 10 job tensor read 1000
+2 25 job kvs write 1000
+3 40 job tensor write 500
+4 60 job tensor read 1000
+5 75 job tensor read 10
+6 90 job kvs read 1000

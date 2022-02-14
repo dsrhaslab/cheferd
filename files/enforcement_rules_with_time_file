@@ -1,0 +1,12 @@
+1 1 1000 flow fg true rate 10000
+2 5 2000 flow fg true rate 10000
+3 10 1000 flow fg true rate 100
+4 12 2000 flow fg true rate 100
+5 17 1000 flow fg true rate 1000
+6 30 2000 flow fg true rate 1000
+7 35 1000 flow fg true rate 2000
+8 50 2000 flow fg true rate 2000
+9 52 1000 flow fg true rate 3000
+10 53 2000 flow fg true rate 3000
+11 58 1000 flow fg true rate 500
+12 70 2000 flow fg true rate 500

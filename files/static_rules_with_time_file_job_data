@@ -1,0 +1,6 @@
+1 10 job tensor data 1000
+2 25 job kvs data 1000
+3 40 job tensor data 500
+4 60 job tensor data 1000
+5 75 job tensor data 10
+6 90 job kvs data 1000
