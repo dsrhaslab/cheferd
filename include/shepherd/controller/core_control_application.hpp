@@ -75,13 +75,16 @@ private:
     std::mutex pending_rules_queue_lock_;
 
     ControlType m_control_type { ControlType::NOOP };
-    std::vector<std::unique_ptr<LocalControllerSession>> local_sessions_;
-    std::unordered_map<std::string, std::unordered_map<int, std::vector<int>>> job_location_tracker;
+    std::unordered_map<std::string, std::unique_ptr<LocalControllerSession>> local_sessions_;
+    std::unordered_map<std::string, std::unordered_map<std::string, std::vector<int>>> job_location_tracker;
     std::unordered_map<std::string, int> job_rates;
     std::unordered_map<std::string, int> job_previous_rates;
     std::unordered_map<std::string, int> job_demands;
+    std::unordered_map<std::string, std::unordered_set<std::string>> user_job_tracker;
 
-    std::queue<std::pair<int,std::string>>local_to_data_queue_;
+
+    std::queue<std::string> local_queue;
+    std::queue<std::tuple<std::string, std::pair<std::string,std::string>, std::string>>local_to_data_queue_;
     long maximum_iops;
 
 
@@ -103,7 +106,7 @@ private:
      * @param index
      * @return
      */
-    PStatus local_handshake (int local_index);
+    PStatus local_handshake (const std::string& local_controller_address);
 
     // FIXME: not using this method ...
     /**
@@ -118,25 +121,29 @@ private:
      * @param start_index
      * @return
      */
-    std::unordered_map<int, std::unique_ptr<StageResponse>>
-    collect_statistics_global (const int& active_sessions, const int& start_index);
+    std::unordered_map<std::string, std::unique_ptr<StageResponse>>
+    collect_statistics_global ();
 
-    std::unordered_map<int, std::unique_ptr<StageResponse>>
-    collect_statistics_entity (const int& active_sessions, const int& start_index);
+    std::unordered_map<std::string, std::unique_ptr<StageResponse>>
+    collect_statistics_entity ();
 
     /**
      * Compute:
      * @param statistics_ptr
      */
-    void compute_and_enforce_static_rules (const std::unordered_map<int, std::unique_ptr<StageResponse>>& s_stats,
+    void compute_and_enforce_static_rules (const std::unordered_map<std::string, std::unique_ptr<StageResponse>>& s_stats,
         const int& active_sessions,
         const int& start_index);
 
-    void compute_and_enforce_dynamic_rules (const std::unordered_map<int, std::unique_ptr<StageResponse>>& d_stats,
+    void compute_and_enforce_static_rules_job (const std::unordered_map<std::string, std::unique_ptr<StageResponse>>& s_stats,
+                                               const std::string job_name, const long job_limit, const std::string e_rule_starter);
+
+
+    void compute_and_enforce_dynamic_rules (const std::unordered_map<std::string, std::unique_ptr<StageResponse>>& d_stats,
         const int& active_sessions,
         const int& start_index);
 
-    void compute_and_enforce_mds_rules (const std::unordered_map<int, std::unique_ptr<StageResponse>>& entity_stats,
+    void compute_and_enforce_mds_rules (const std::unordered_map<std::string, std::unique_ptr<StageResponse>>& entity_stats,
         const int& active_sessions, const int& start_index);
 
     std::string DequeueRuleFromQueue ();
@@ -164,8 +171,12 @@ private:
      * CallLocalHandshake:
      * @return
      */
-    PStatus call_local_handshake (const int& local_index);
+    PStatus call_local_handshake (const std::string& local_controller_address);
 
+
+    PStatus mark_data_plane_stage_ready (const std::string& local_controller_address,
+                                         const std::string& stage_name,
+                                         const std::string& stage_env);
 
     /**
      * CalibrateStageRate: ...

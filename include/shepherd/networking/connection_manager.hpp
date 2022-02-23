@@ -34,7 +34,7 @@ using grpc::ServerBuilder;
 using grpc::ServerContext;
 using grpc::Status;
 using controllers_grpc_interface::ConnectRequest;
-using controllers_grpc_interface::ConnectRequestStage;
+using controllers_grpc_interface::StageInfo;
 using controllers_grpc_interface::ConnectReply;
 using controllers_grpc_interface::ACK;
 
@@ -126,7 +126,7 @@ private:
     Status ConnectLocalToGlobal(ServerContext* context, const ConnectRequest* request,
             ConnectReply* reply);
 
-    Status ConnectStageToGlobal(ServerContext* context, const ConnectRequestStage* request,
+    Status ConnectStageToGlobal(ServerContext* context, const StageInfo* request,
                 ConnectReply* reply);
 
 public:

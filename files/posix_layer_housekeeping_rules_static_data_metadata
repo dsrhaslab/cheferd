@@ -1,6 +1,6 @@
-1 create_channel 1000 posix 1000 metadata no_op
+1 create_channel 1000 posix_meta 1000 metadata no_op
 2 create_channel 2000 posix 2000 data no_op
 3 create_channel 3000 posix 3000 data no_op
-4 create_object 1000 1 posix metadata no_op drl 10000 1073741824
+4 create_object 1000 1 posix_meta metadata no_op drl 10000 1073741824
 5 create_object 2000 1 posix data no_op drl 10000 1073741824
 6 create_object 3000 1 posix data no_op drl 10000 1073741824

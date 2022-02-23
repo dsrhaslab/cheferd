@@ -143,7 +143,7 @@ PStatus LocalInterface::stage_handshake (const std::string& user_address,
 
 PStatus LocalInterface::mark_stage_ready (const std::string& user_address,
     ControlOperation* operation,
-    StageReadyRaw& stage_ready_obj,
+    const std::string& rule,
     ACK& response)
 {
 
@@ -153,11 +153,11 @@ PStatus LocalInterface::mark_stage_ready (const std::string& user_address,
     // the server and/or tweak certain RPC behaviors.
     ClientContext context;
 
-    // send phase
-    stage_ready_obj.m_mark_stage = true;
 
     controllers_grpc_interface::StageReadyRaw stage_ready_raw;
     stage_ready_raw.set_m_mark_stage(true);
+    //stage_ready_raw.set_name_env(rule);
+
 
     Status status = stub_->MarkStageReady(&context, stage_ready_raw, &reply);
 
@@ -462,16 +462,16 @@ PStatus LocalInterface::collect_global_statistics (const std::string& user_addre
         Logging::log_error ("collect_tensorflow_statistics: Error while writing control operation (" + status.error_message() + ").");
         return PStatus::Error();
     } else {
-        for (auto stats_tf : reply.stats()){
+        for (auto stats : reply.gl_stats()){
 
-            stats_tf_objects->emplace(stats_tf.stage_name() + "+" + stats_tf.stage_env(),
+            stats_tf_objects->emplace(stats.first,
                 std::make_unique<StageResponseStatsGlobal> (COLLECT_GLOBAL_STATS,
-                    stats_tf.m_read_rate(),
-                    stats_tf.m_write_rate(),
-                    stats_tf.m_open_rate(),
-                    stats_tf.m_close_rate(),
-                    stats_tf.m_getattr_rate(),
-                    stats_tf.m_metadata_total_rate()
+                                                            stats.second.m_read_rate(),
+                                                            stats.second.m_write_rate(),
+                                                            stats.second.m_open_rate(),
+                                                            stats.second.m_close_rate(),
+                                                            stats.second.m_getattr_rate(),
+                                                            stats.second.m_metadata_total_rate()
                 ));
         }
 

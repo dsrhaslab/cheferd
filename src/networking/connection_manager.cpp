@@ -36,7 +36,10 @@ ConnectionManager::ConnectionManager (const std::string& controller_address,  co
         // create a UNIX Domain Sockets connection
         case CommunicationType::UNIX: {
 
-            std::string control_type = (option_is_rocksdb_algorithm_ ? "kvs" : "tensorflow");
+            std::string socket_name = "/tmp/" +  local_address + ".socket";
+            PrepareUnixConnections (socket_name.c_str(), 0);
+
+            /*std::string control_type = (option_is_rocksdb_algorithm_ ? "kvs" : "tensorflow");
             if (control_type.compare ("tensorflow") == 0) {
                 PrepareUnixConnections (option_socket_name_tf_1_.c_str (), 0);
                 PrepareUnixConnections (option_socket_name_tf_2_.c_str (), 1);
@@ -46,7 +49,7 @@ ConnectionManager::ConnectionManager (const std::string& controller_address,  co
                 Logging::log_debug ("PrepareUnixConnection: connecting RocksDB "
                                     "instance through UNIX sockets.");
                 PrepareUnixConnection (option_socket_name_.c_str (), option_backlog_);
-            }
+            }*/
             break;
         }
             // prepare for INET socket communications
@@ -134,7 +137,7 @@ Status ConnectionManager::ConnectLocalToGlobal(ServerContext* context, const Con
 }
 
 // Connect data plane stage to core controller
-Status ConnectionManager::ConnectStageToGlobal(ServerContext* context, const ConnectRequestStage* request,
+Status ConnectionManager::ConnectStageToGlobal(ServerContext* context, const StageInfo* request,
     ConnectReply* reply)  {
     std::string prefix("Hello stage with index: ");
 
@@ -173,7 +176,7 @@ void ConnectionManager::Start (LocalControlApplication* app_ptr)
         std::cout << "Waiting for connection ...\n";
 
         // accept data plane stage connection (TensorFlow)
-        int socket_t = AcceptConnections (index_t);
+        int socket_t = AcceptConnections (0);
 
         if (socket_t != -1) {
             // register data plane session

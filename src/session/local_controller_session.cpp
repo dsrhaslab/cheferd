@@ -33,8 +33,6 @@ void LocalControllerSession::StartSession (const std::string& user_address)
 {
     Logging::log_debug ("LocalControllerSession::StartSession");
 
-    Logging::log_debug ("LocalControllerSession :: " + std::to_string (getSubmissionQueueSize ()));
-
     int i = 1;
 
     // after knowing the Stage identifier,
@@ -88,12 +86,10 @@ PStatus LocalControllerSession::SendRule (const std::string& user_address, const
         case STAGE_READY: {
             std::cout << "STAGE_READY ...\n";
             operation->m_size = sizeof (struct StageReadyRaw);
-            // create temporary StageReadyRaw struct
-            StageReadyRaw stage_ready {};
             // create temporary ACK structure
             ACK ack {};
             // invoke ...
-            status = interface_.mark_stage_ready (user_address, operation, stage_ready, ack);
+            status = interface_.mark_stage_ready (user_address, operation, rule, ack);
             // enqueue response of data plane stage from mar_stage_ready request
             EnqueueResponseInCompletionQueue (std::make_unique<StageResponseACK> (STAGE_READY, ack.m_message));
             break;

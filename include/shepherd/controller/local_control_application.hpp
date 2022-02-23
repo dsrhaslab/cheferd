@@ -23,7 +23,7 @@ using grpc::ServerBuilder;
 using grpc::ServerContext;
 using grpc::Status;
 using controllers_grpc_interface::ConnectRequest;
-using controllers_grpc_interface::ConnectRequestStage;
+using controllers_grpc_interface::StageInfo;
 using controllers_grpc_interface::ConnectReply;
 using controllers_grpc_interface::StageReadyRaw;
 using controllers_grpc_interface::ACK;
@@ -73,7 +73,8 @@ private:
 
     std::string core_address;
     std::string local_address;
-    std::vector<std::unique_ptr<DataPlaneSession>> data_sessions_;
+    std::unordered_map<int, std::unique_ptr<DataPlaneSession>> data_sessions_;
+    std::unordered_map<int, std::unique_ptr<DataPlaneSession>> pending_data_sessions_;
     std::unordered_map<std::string, int> stage_name_env_to_index_;
     std::unordered_map<int, int> index_to_pid_;
     std::unordered_map<int, std::pair<std::string, std::string>> index_to_stage_name_env_;

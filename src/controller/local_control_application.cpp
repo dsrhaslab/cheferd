@@ -20,6 +20,7 @@ LocalControlApplication::LocalControlApplication (
     const std::string& local_address) :
     ControlApplication {},
     data_sessions_ {},
+    pending_data_sessions_ {},
     stage_name_env_to_index_ {},
     index_to_pid_ {},
     index_to_stage_name_env_ {},
@@ -47,6 +48,7 @@ LocalControlApplication::LocalControlApplication (
     const uint64_t& cycle_sleep_time) :
     ControlApplication {  rules_ptr, cycle_sleep_time },
     data_sessions_ {},
+    pending_data_sessions_{},
     stage_name_env_to_index_ {},
     index_to_pid_ {},
     index_to_stage_name_env_ {},
@@ -125,7 +127,7 @@ Status LocalControlApplication::ConnectLocalToGlobal() {
 
 Status LocalControlApplication::ConnectStageToGlobal(const std::string& stage_name, const std::string& stage_env, const std::string& stage_user){
     // Data we are sending to the server.
-    ConnectRequestStage request;
+    StageInfo request;
     request.set_local_address(local_address);
     request.set_stage_name(stage_name);
     request.set_stage_env(stage_env);
@@ -166,9 +168,9 @@ void LocalControlApplication::initialize ()
 //    RegisterDataPlaneSession call. (...)
 DataPlaneSession* LocalControlApplication::register_stage_session (int index)
 {
-    Logging::log_debug ("RegisterDataPlaneSession -- TensorFlow-" + std::to_string (index));
+    Logging::log_debug ("RegisterDataPlaneSession -- DataPlaneStage-" + std::to_string (index));
 
-    data_sessions_.push_back(std::make_unique<DataPlaneSession> ());
+    data_sessions_.emplace(index, std::make_unique<DataPlaneSession> ());
 
     this->m_pending_data_plane_sessions.fetch_add (1);
 
@@ -262,10 +264,10 @@ void LocalControlApplication::execute_feedback_loop ()
                 this->m_pending_data_plane_sessions.fetch_sub (1);
                 this->m_active_data_plane_sessions.fetch_add (1);
 
-                Logging::log_debug ("DataPlaneSessionHandshake with TensorFlow-"
+                Logging::log_debug ("DataPlaneSessionHandshake with DataPlaneStage-"
                                     + std::to_string (index) + " successfully established.");
             } else {
-                Logging::log_error ("DataPlaneSessionHandshake with TensorFlow-"
+                Logging::log_error ("DataPlaneSessionHandshake with DataPlaneStage-"
                                     + std::to_string (index + 1) + " not established.");
 
                 std::this_thread::sleep_for (milliseconds (100));
@@ -330,7 +332,7 @@ int LocalControlApplication::submit_housekeeping_rules (const int &index) const
     // read rules from housekeeping_rules_ptr and submit to the SubmissionQueue
     for (const auto& value : *housekeeping_rules_ptr_) {
         // submit rule to the SubmissionQueue
-        status = data_sessions_[index]->SubmitRule (value);
+        status = data_sessions_.at(index)->SubmitRule (value);
 
         // update the counter of submitted rules
         if (status.isOk ()) {
@@ -341,7 +343,7 @@ int LocalControlApplication::submit_housekeeping_rules (const int &index) const
     // read responses from the CompletionQueue
     for (int i = 0; i < rule_counter; i++) {
         // get rules from CompletionQueue and cast them to a StageResponseACK object
-        std::unique_ptr<StageResponse> response = data_sessions_[index]->GetResult ();
+        std::unique_ptr<StageResponse> response = data_sessions_.at(index)->GetResult ();
         auto* ack_ptr = dynamic_cast<StageResponseACK*> (response.get ());
 
         // validate data plane stage response
@@ -673,6 +675,8 @@ Status LocalControlApplication::CollectGlobalStatistics (ServerContext* context,
     }
 
 
+    auto& stats_map = *reply->mutable_gl_stats();
+
 
     // collect requests from each DataPlaneSession's completion_queue
     for (int i = start_index; i < (active_sessions + start_index); i++) {
@@ -690,20 +694,19 @@ Status LocalControlApplication::CollectGlobalStatistics (ServerContext* context,
                 this->m_active_data_plane_sessions.fetch_sub (1);
             } else {
 
+                std::string name = index_to_stage_name_env_[i].first + "+" +  index_to_stage_name_env_[i].second;
 
+                controllers_grpc_interface::StatsGlobal stats_global;
 
-                controllers_grpc_interface::StatsGlobal stat_temp = *reply->add_stats();
+                stats_global.set_m_read_rate(response_ptr->get_read_rate ());
+                stats_global.set_m_write_rate(response_ptr->get_write_rate ());
+                stats_global.set_m_open_rate (response_ptr->get_open_rate());
+                stats_global.set_m_close_rate (response_ptr->get_close_rate());
+                stats_global.set_m_getattr_rate (response_ptr->get_getattr_rate());
+                stats_global.set_m_metadata_total_rate (response_ptr->get_metadata_total_rate());
 
-                auto stage_name_env = index_to_stage_name_env_.at(i);
+                stats_map[name] = stats_global;
 
-                stat_temp.set_stage_name (stage_name_env.first);
-                stat_temp.set_stage_env(stage_name_env.second);
-                stat_temp.set_m_read_rate(response_ptr->get_read_rate ());
-                stat_temp.set_m_write_rate(response_ptr->get_write_rate ());
-                stat_temp.set_m_open_rate (response_ptr->get_open_rate());
-                stat_temp.set_m_close_rate (response_ptr->get_close_rate());
-                stat_temp.set_m_getattr_rate (response_ptr->get_getattr_rate());
-                stat_temp.set_m_metadata_total_rate (response_ptr->get_metadata_total_rate());
             }
         }
     }

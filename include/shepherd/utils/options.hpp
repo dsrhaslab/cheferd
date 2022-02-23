@@ -118,6 +118,9 @@ const std::string option_static_rules_with_time_file_path_job_data
 const std::string option_static_rules_with_time_file_path_job
     = "/Users/marianamiranda/Desktop/PhD/code/paddl/shepherd/files/static_rules_with_time_file_job";
 
+const std::string option_static_rules_with_time_file_path_user
+        = "/Users/marianamiranda/Desktop/PhD/code/paddl/shepherd/files/static_rules_with_time_file_user";
+
 const std::string option_mds_rules_with_time_file_path_
     = "/Users/marianamiranda/Desktop/PhD/code/paddl/shepherd/files/mds_rules_with_time_file";
 
