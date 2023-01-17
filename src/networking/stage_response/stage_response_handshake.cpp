@@ -3,9 +3,9 @@
  *   Copyright (c) 2020 INESC TEC.
  **/
 
-#include "shepherd/networking/stage_response/stage_response_handshake.hpp"
+#include "cheferd/networking/stage_response/stage_response_handshake.hpp"
 
-namespace shepherd {
+namespace cheferd {
 
 //    StageResponseHandshake default constructor.
 StageResponseHandshake::StageResponseHandshake ()
@@ -13,9 +13,10 @@ StageResponseHandshake::StageResponseHandshake ()
     Logging::log_debug ("StageResponseHandshake object created.");
 }
 
-StageResponseHandshake::StageResponseHandshake (const int& response_type, const StageSimplifiedHandshakeRaw& stage) :
+StageResponseHandshake::StageResponseHandshake (const int& response_type,
+    const StageSimplifiedHandshakeRaw& stage) :
     m_name { std::string (stage.m_stage_name) },
-    m_env { std::string (stage.m_stage_env) },
+    m_env { std::to_string (stage.m_pid) },
     m_pid { stage.m_pid },
     m_ppid { stage.m_ppid },
     m_hostname { std::string (stage.m_stage_hostname) },
@@ -68,8 +69,10 @@ std::string StageResponseHandshake::toString () const
     std::stringstream stream;
     stream << "StageInfo {";
     stream << this->m_name << ", ";
-    if (!this->m_env.empty()) stream << this->m_env << ", ";
-    if (!this->m_description.empty()) stream << this->m_description << ", ";
+    if (!this->m_env.empty ())
+        stream << this->m_env << ", ";
+    if (!this->m_description.empty ())
+        stream << this->m_description << ", ";
     stream << this->m_pid << ", ";
     stream << this->m_ppid << ", ";
     stream << this->m_hostname << ", ";
@@ -78,4 +81,4 @@ std::string StageResponseHandshake::toString () const
     return stream.str ();
 }
 
-} // namespace shepherd
+} // namespace cheferd

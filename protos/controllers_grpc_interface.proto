@@ -29,9 +29,9 @@ service GlobalToLocal{
   rpc CreateHouseKeepingRuleChannel (HousekeepingCreateChannelString) returns (ACK) {}
   rpc CreateHouseKeepingRuleObject (HousekeepingCreateObjectString) returns (ACK) {}
   rpc ExecuteHousekeepingRules (Execute) returns (ACK) {}
-  rpc CreateEnforcementRule (EnforcementRuleString) returns (ACK) {}
+  rpc CreateEnforcementRule (EnforcementRules) returns (ACK) {}
   rpc CollectGlobalStatistics (ControlOperation) returns (StatsGlobalMap) {}
-  rpc CollectEntityStatistics (ControlOperation) returns (StatsEntityMap) {}
+  rpc CollectGlobalStatisticsAggregated (ControlOperation) returns (StatsGlobalMap) {}
 }
 
 
@@ -111,11 +111,15 @@ message Execute {
 }
 
 
-message EnforcementRuleString {
+message EnforcementRules {
+  //<operation, ...>
+  map<string, EnforcementOpRules> operation_rules= 1;
+}
+
+message EnforcementOpRules {
   int64 m_rule_id = 1;
   string m_stage_name = 2;
-  string m_operation = 3;
-  map<int64, int64> env_rates = 4;
+  map<int64, int64> env_rates = 3;
 }
 
 message EnforcementRuleRaw {
@@ -128,14 +132,6 @@ message EnforcementRuleRaw {
   int64 m_property_second = 6;
   int64 m_property_third = 7;
 }
-
-message StatsEntity {
-  map<string, double> ent_stats = 1;
-}
-
-message StatsEntityMap {
-  map<string, StatsEntity> stats = 1;
-};
 
 message StatsMetadata {
   double m_open_rate = 1;
@@ -150,11 +146,6 @@ message StatsGlobalMap {
 };
 
 message StatsGlobal {
-  double m_read_rate = 3;
-  double m_write_rate = 4;
-  double m_open_rate = 5;
-  double m_close_rate = 6;
-  double m_getattr_rate = 7;
   double m_metadata_total_rate = 8;
 };
 

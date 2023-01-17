@@ -3,9 +3,9 @@
  *   Copyright (c) 2020 INESC TEC.
  **/
 
-#include "shepherd/networking/stage_response/stage_response_stat.hpp"
+#include "cheferd/networking/stage_response/stage_response_stat.hpp"
 
-namespace shepherd {
+namespace cheferd {
 
 //    StageResponseStat default constructor.
 StageResponseStat::StageResponseStat () :
@@ -20,8 +20,7 @@ StageResponseStat::StageResponseStat (const int& response_type,
     const double& instance_read_bandwidth,
     const double& instance_write_bandwidth,
     const double& pid_read_bandwidth,
-    const double& pid_write_bandwidth
-        ) :
+    const double& pid_write_bandwidth) :
     StageResponse { response_type },
     m_instance_read_bandwidth { instance_read_bandwidth },
     m_instance_write_bandwidth { instance_write_bandwidth },
@@ -65,13 +64,13 @@ double StageResponseStat::get_pid_write_rate () const
 //    toString call. (...)
 std::string StageResponseStat::toString () const
 {
-    std::string return_value_t = "StatsKVS {" +
-            std::to_string (m_instance_read_bandwidth / 1024 / 1024) + ", " +
-            std::to_string (m_instance_write_bandwidth / 1024 / 1024) + ", " +
-            std::to_string (m_pid_read_bandwidth / 1024 / 1024) + ", " +
-            std::to_string (m_pid_write_bandwidth / 1024 / 1024) + "}";
+    std::string return_value_t = "StatsKVS {"
+        + std::to_string (m_instance_read_bandwidth / 1024 / 1024) + ", "
+        + std::to_string (m_instance_write_bandwidth / 1024 / 1024) + ", "
+        + std::to_string (m_pid_read_bandwidth / 1024 / 1024) + ", "
+        + std::to_string (m_pid_write_bandwidth / 1024 / 1024) + "}";
 
     return return_value_t;
 }
 
-} // namespace shepherd
+} // namespace cheferd

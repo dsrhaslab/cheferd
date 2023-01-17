@@ -3,25 +3,22 @@
  *   Copyright (c) 2020 INESC TEC.
  **/
 
-#include <shepherd/session/local_controller_session.hpp>
-#include "shepherd/networking/stage_response/stage_response_stats_global.hpp"
+#include "cheferd/networking/stage_response/stage_response_stats_global.hpp"
 
-namespace shepherd {
+#include <cheferd/session/local_controller_session.hpp>
+
+namespace cheferd {
 
 // LocalControllerSession default constructor.
 LocalControllerSession::LocalControllerSession (const std::string& user_address) :
     session_id_ { 0 },
-    interface_ {user_address},
-    submission_queue_ {},
-    completion_queue_ {}
+    interface_ { user_address }
 { }
 
 // LocalControllerSession parameterized constructor.
 LocalControllerSession::LocalControllerSession (long id, const std::string& user_address) :
     session_id_ { id },
-    interface_ {user_address},
-    submission_queue_ {},
-    completion_queue_ {}
+    interface_ { user_address }
 { }
 
 // LocalControllerSession default destructor.
@@ -33,22 +30,25 @@ void LocalControllerSession::StartSession (const std::string& user_address)
 {
     Logging::log_debug ("LocalControllerSession::StartSession");
 
-    int i = 1;
+    working_session_ = true;
 
     // after knowing the Stage identifier,
-    while (i) {
+    while (working_session_.load ()) {
         PStatus status;
         ControlOperation operation {};
         std::string rule {};
 
         status = DequeueRuleFromSubmissionQueue (rule);
-
-        status = SendRule (user_address, rule, &operation);
+        if (status.isOk ()) {
+            status = SendRule (user_address, rule, &operation);
+        }
     }
 }
 
 // SendRule call. Submit rule to the data plane stage.
-PStatus LocalControllerSession::SendRule (const std::string& user_address, const std::string& rule, ControlOperation* operation)
+PStatus LocalControllerSession::SendRule (const std::string& user_address,
+    const std::string& rule,
+    ControlOperation* operation)
 {
     // parse rule
     if (!rule.empty ()) {
@@ -66,7 +66,8 @@ PStatus LocalControllerSession::SendRule (const std::string& user_address, const
             // invoke SouthboundInterface's StageHandshake call
             status = interface_.local_handshake (user_address, operation, rule, ack);
             // enqueue response of data plane stage from StageHandshake request
-            EnqueueResponseInCompletionQueue (std::make_unique<StageResponseACK> (LOCAL_HANDSHAKE, ack.m_message));
+            EnqueueResponseInCompletionQueue (
+                std::make_unique<StageResponseACK> (LOCAL_HANDSHAKE, ack.m_message));
 
             break;
         }
@@ -78,7 +79,8 @@ PStatus LocalControllerSession::SendRule (const std::string& user_address, const
             // invoke SouthboundInterface's StageHandshake call
             status = interface_.stage_handshake (user_address, operation, handshake_obj);
             // enqueue response of data plane stage from StageHandshake request
-            EnqueueResponseInCompletionQueue (std::make_unique<StageResponseHandshake> (STAGE_HANDSHAKE, handshake_obj));
+            EnqueueResponseInCompletionQueue (
+                std::make_unique<StageResponseHandshake> (STAGE_HANDSHAKE, handshake_obj));
 
             break;
         }
@@ -91,7 +93,8 @@ PStatus LocalControllerSession::SendRule (const std::string& user_address, const
             // invoke ...
             status = interface_.mark_stage_ready (user_address, operation, rule, ack);
             // enqueue response of data plane stage from mar_stage_ready request
-            EnqueueResponseInCompletionQueue (std::make_unique<StageResponseACK> (STAGE_READY, ack.m_message));
+            EnqueueResponseInCompletionQueue (
+                std::make_unique<StageResponseACK> (STAGE_READY, ack.m_message));
             break;
         }
 
@@ -102,7 +105,8 @@ PStatus LocalControllerSession::SendRule (const std::string& user_address, const
             // invoke SouthboundInterface's CreateHousekeepingRule
             status = interface_.create_housekeeping_rule (user_address, operation, rule, ack);
             // enqueue response of data plane stage from CreateHousekeepingRule request
-            EnqueueResponseInCompletionQueue (std::make_unique<StageResponseACK> (CREATE_HSK_RULE, ack.m_message));
+            EnqueueResponseInCompletionQueue (
+                std::make_unique<StageResponseACK> (CREATE_HSK_RULE, ack.m_message));
             break;
         }
 
@@ -113,7 +117,8 @@ PStatus LocalControllerSession::SendRule (const std::string& user_address, const
             status = interface_.ExecuteHousekeepingRules (user_address, operation, rule, ack);
             // enqueue response of data plane stage from ExecuteHousekeepingRule
             // request
-            EnqueueResponseInCompletionQueue (std::make_unique<StageResponseACK> (EXEC_HSK_RULES, ack.m_message));
+            EnqueueResponseInCompletionQueue (
+                std::make_unique<StageResponseACK> (EXEC_HSK_RULES, ack.m_message));
             break;
         }
 
@@ -125,7 +130,8 @@ PStatus LocalControllerSession::SendRule (const std::string& user_address, const
 
             // enqueue response of data plane stage from CreateEnforcementRule
             // request
-            EnqueueResponseInCompletionQueue (std::make_unique<StageResponseACK> (CREATE_ENF_RULE, ack.m_message));
+            EnqueueResponseInCompletionQueue (
+                std::make_unique<StageResponseACK> (CREATE_ENF_RULE, ack.m_message));
 
             break;
         }
@@ -134,9 +140,10 @@ PStatus LocalControllerSession::SendRule (const std::string& user_address, const
             // create temporary ACK structure
             ACK ack {};
             // invoke SouthboundInterface's RemoveRule
-            //status = interface_.RemoveRule (socket, operation, operation->m_operation_id, ack);
+            // status = interface_.RemoveRule (socket, operation, operation->m_operation_id, ack);
             // enqueue response of data plane stage from RemoveRule request
-            EnqueueResponseInCompletionQueue (std::make_unique<StageResponseACK> (REMOVE_RULE, ack.m_message));
+            EnqueueResponseInCompletionQueue (
+                std::make_unique<StageResponseACK> (REMOVE_RULE, ack.m_message));
             break;
         }
 
@@ -144,47 +151,77 @@ PStatus LocalControllerSession::SendRule (const std::string& user_address, const
             status = interface_.collect_statistics (user_address, operation);
             break;
 
-        case COLLECT_GLOBAL_STATS: {
-            // create temporary StatsKVSRaw structure
-            std::unique_ptr<std::unordered_map<std::string, std::unique_ptr<StageResponse>>> stats_tf_objects =
-                std::make_unique<std::unordered_map<std::string, std::unique_ptr<StageResponse>>>();
+        case COLLECT_DETAILED_STATS: {
+            std::vector<std::string> tokens {};
 
-            // invoke SouthboundInterface's CollectStatisticsKVS
-            status = interface_.collect_global_statistics(user_address, operation, stats_tf_objects);
+            size_t start;
+            size_t end = 0;
 
-            if (status.isOk ()) {
-                // enqueue response of data plane stage from collect_tensorflow_statistics request
-                EnqueueResponseInCompletionQueue (
-                    std::make_unique<StageResponseStats> (COLLECT_GLOBAL_STATS, stats_tf_objects
-                        ));
-
-            } else {
-                // enqueue response of data plane stage from collect_tensorflow_statistics request
-                EnqueueResponseInCompletionQueue (
-                    std::make_unique<StageResponseStats> (COLLECT_GLOBAL_STATS, stats_tf_objects));
+            while ((start = rule.find_first_not_of ('|', end)) != std::string::npos) {
+                end = rule.find ('|', start);
+                tokens.push_back (rule.substr (start, end - start));
             }
-            break;
-        }
+            operation->m_operation_subtype = std::stoi (tokens[1]);
 
-        case COLLECT_ENTITY_STATS: {
+            switch (operation->m_operation_subtype) {
+                case COLLECT_GLOBAL_STATS: {
+                    // create temporary StatsKVSRaw structure
+                    std::unique_ptr<std::unordered_map<std::string, std::unique_ptr<StageResponse>>>
+                        stats_tf_objects = std::make_unique<
+                            std::unordered_map<std::string, std::unique_ptr<StageResponse>>> ();
 
-            // create temporary StatsKVSRaw structure
-            std::unique_ptr<std::unordered_map<std::string, std::unique_ptr<StageResponse>>> stats_tf_objects =
-                std::make_unique<std::unordered_map<std::string, std::unique_ptr<StageResponse>>>();
+                    // invoke SouthboundInterface's CollectStatisticsKVS
+                    status = interface_.collect_global_statistics (user_address,
+                        operation,
+                        stats_tf_objects);
 
-            // invoke SouthboundInterface's CollectStatisticsKVS
-            status = interface_.collect_entity_statistics(user_address, operation, stats_tf_objects);
+                    if (status.isOk ()) {
+                        // enqueue response of data plane stage from collect_tensorflow_statistics
+                        // request
+                        EnqueueResponseInCompletionQueue (
+                            std::make_unique<StageResponseStats> (COLLECT_GLOBAL_STATS,
+                                stats_tf_objects));
 
-            if (status.isOk ()) {
-                // enqueue response of data plane stage from collect_tensorflow_statistics request
-                EnqueueResponseInCompletionQueue (
-                    std::make_unique<StageResponseStats> (COLLECT_ENTITY_STATS, stats_tf_objects
-                        ));
+                    } else {
+                        // enqueue response of data plane stage from collect_tensorflow_statistics
+                        // request
+                        EnqueueResponseInCompletionQueue (
+                            std::make_unique<StageResponseStats> (COLLECT_GLOBAL_STATS,
+                                stats_tf_objects));
+                    }
+                    break;
+                }
+                case COLLECT_GLOBAL_STATS_AGGREGATED: {
+                    // create temporary StatsKVSRaw structure
+                    std::unique_ptr<std::unordered_map<std::string, std::unique_ptr<StageResponse>>>
+                        stats_tf_objects = std::make_unique<
+                            std::unordered_map<std::string, std::unique_ptr<StageResponse>>> ();
 
-            } else {
-                // enqueue response of data plane stage from collect_tensorflow_statistics request
-                EnqueueResponseInCompletionQueue (
-                    std::make_unique<StageResponseStats> (COLLECT_ENTITY_STATS, stats_tf_objects));
+                    // invoke SouthboundInterface's CollectStatisticsKVS
+                    status = interface_.collect_global_statistics_aggregated (user_address,
+                        operation,
+                        stats_tf_objects);
+
+                    if (status.isOk ()) {
+                        // enqueue response of data plane stage from collect_tensorflow_statistics
+                        // request
+                        EnqueueResponseInCompletionQueue (
+                            std::make_unique<StageResponseStats> (COLLECT_GLOBAL_STATS,
+                                stats_tf_objects));
+
+                    } else {
+                        // enqueue response of data plane stage from collect_tensorflow_statistics
+                        // request
+                        EnqueueResponseInCompletionQueue (
+                            std::make_unique<StageResponseStats> (COLLECT_GLOBAL_STATS,
+                                stats_tf_objects));
+                    }
+                    break;
+                }
+
+                default:
+                    Logging::log_error ("After parsing -- other rule");
+                    return PStatus::Error ();
             }
             break;
         }
@@ -198,12 +235,22 @@ PStatus LocalControllerSession::SendRule (const std::string& user_address, const
     return status;
 }
 
+void LocalControllerSession::RemoveSession ()
+{
+    working_session_ = false;
+    EnqueueRuleInSubmissionQueue ("");
+}
+
 // EnqueueRuleInSubmissionQueue call. Enqueue rule in the submission_queue.
 void LocalControllerSession::EnqueueRuleInSubmissionQueue (const std::string& rule)
 {
+    // Logging::log_debug("DataPlaneSession :: Enqueueue to dequeue");
+
     std::unique_lock<std::mutex> lock_t { submission_queue_lock_ };
     submission_queue_.emplace (rule);
     submission_queue_condition_.notify_one ();
+
+    // Logging::log_debug("DataPlaneSession :: Enqueueue to dequeue2");
 }
 
 // Missing: add wait_for and cv_status to exit the condition when we need to terminate the
@@ -213,14 +260,23 @@ PStatus LocalControllerSession::DequeueRuleFromSubmissionQueue (std::string& rul
     std::unique_lock<std::mutex> lock_t { submission_queue_lock_ };
     PStatus status_t = PStatus::Error ();
 
-    while (submission_queue_.empty ()) {
+    // Logging::log_debug("DataPlaneSession :: 1Dequeueue to dequeue");
+
+    while (working_session_.load () && submission_queue_.empty ()) {
+        // Logging::log_debug("DataPlaneSession :: 2Dequeueue to dequeue");
+
         submission_queue_condition_.wait (lock_t);
+        // Logging::log_debug("DataPlaneSession :: 3Dequeueue to dequeue");
     }
 
-    rule = submission_queue_.front ();
-    submission_queue_.pop ();
+    // Logging::log_debug("DataPlaneSession :: 4Dequeueue to dequeue");
 
-    status_t = PStatus::OK ();
+    if (working_session_.load ()) {
+        // Logging::log_debug("DataPlaneSession :: 5Dequeueue to dequeue");
+        rule = submission_queue_.front ();
+        submission_queue_.pop ();
+        status_t = PStatus::OK ();
+    }
 
     return status_t;
 }
@@ -239,6 +295,7 @@ void LocalControllerSession::EnqueueResponseInCompletionQueue (
 //  DequeueResponseFromCompletionQueue call. Dequeue response from the completion_queue.
 std::unique_ptr<StageResponse> LocalControllerSession::DequeueResponseFromCompletionQueue ()
 {
+
     std::unique_lock<std::mutex> lock_t { completion_queue_lock_ };
 
     while (completion_queue_.empty ()) {
@@ -257,7 +314,7 @@ int LocalControllerSession::getSubmissionQueueSize ()
     return submission_queue_.size ();
 }
 
-//    SubmitRule call. Submit rules to the LocalControllerSession.
+//    SubmitRule call. Submit rules to the Session.
 PStatus LocalControllerSession::SubmitRule (const std::string& submission_rule)
 {
     PStatus status_t = PStatus::Error ();
@@ -268,7 +325,7 @@ PStatus LocalControllerSession::SubmitRule (const std::string& submission_rule)
     return status_t;
 }
 
-//    GetResult call. Get results from the LocalControllerSession.
+//    GetResult call. Get results from the Session.
 std::unique_ptr<StageResponse> LocalControllerSession::GetResult ()
 {
     return DequeueResponseFromCompletionQueue ();
@@ -279,4 +336,4 @@ long LocalControllerSession::SessionIdentifier () const
     return session_id_;
 }
 
-} // namespace shepherd
+} // namespace cheferd

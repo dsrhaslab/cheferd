@@ -3,11 +3,11 @@
  *   Copyright (c) 2020 INESC TEC.
  **/
 
-#include <shepherd/networking/interface_definitions.hpp>
-#include <shepherd/session/policy_generator.hpp>
-#include <shepherd/utils/rules_file_parser.hpp>
+#include <cheferd/networking/interface_definitions.hpp>
+#include <cheferd/session/policy_generator.hpp>
+#include <cheferd/utils/rules_file_parser.hpp>
 
-namespace shepherd {
+namespace cheferd {
 
 //    PolicyGenerator default constructor.
 PolicyGenerator::PolicyGenerator () = default;
@@ -115,7 +115,8 @@ std::string PolicyGenerator::generateEnforcementRule (int enf_unit_id,
     return enf_rule_t;
 }
 
-void PolicyGenerator::convert_housekeeping_create_channel_string (const HousekeepingCreateChannelRaw& hsk_raw,
+void PolicyGenerator::convert_housekeeping_create_channel_string (
+    const HousekeepingCreateChannelRaw& hsk_raw,
     std::string& hsk_rule)
 {
     // clean possible old values of string
@@ -123,13 +124,19 @@ void PolicyGenerator::convert_housekeeping_create_channel_string (const Housekee
 
     // pass HousekeepingCreateEChannelRaw to string format
     hsk_rule += std::to_string (CREATE_HSK_RULE) + "|" + // rule type
-        std::to_string (hsk_raw.m_rule_id) + "|" +
-        "create_channel" + "|" +
-        std::to_string (hsk_raw.m_channel_id) + "|" +
-        RulesFileParser::convert_context_type_definition (static_cast<ContextType> (hsk_raw.m_context_definition)) + "|" +
-        std::to_string (hsk_raw.m_workflow_id) + "|" +
-        RulesFileParser::convert_differentiation_definitions (static_cast<ContextType> (hsk_raw.m_context_definition), hsk_raw.m_operation_type) + "|" +
-        RulesFileParser::convert_differentiation_definitions (static_cast<ContextType> (hsk_raw.m_context_definition), hsk_raw.m_operation_context) + "|";
+        std::to_string (hsk_raw.m_rule_id) + "|" + "create_channel" + "|"
+        + std::to_string (hsk_raw.m_channel_id) + "|"
+        + RulesFileParser::convert_context_type_definition (
+            static_cast<ContextType> (hsk_raw.m_context_definition))
+        + "|" + std::to_string (hsk_raw.m_workflow_id) + "|"
+        + RulesFileParser::convert_differentiation_definitions (
+            static_cast<ContextType> (hsk_raw.m_context_definition),
+            hsk_raw.m_operation_type)
+        + "|"
+        + RulesFileParser::convert_differentiation_definitions (
+            static_cast<ContextType> (hsk_raw.m_context_definition),
+            hsk_raw.m_operation_context)
+        + "|";
 }
 
 void PolicyGenerator::convert_housekeeping_create_object_string (
@@ -140,19 +147,25 @@ void PolicyGenerator::convert_housekeeping_create_object_string (
     hsk_rule.clear ();
 
     // pass HousekeepingCreateEObjectRaw to string format
-    hsk_rule += std::to_string (CREATE_HSK_RULE) + "|" +
-        std::to_string (hsk_raw.m_rule_id) + "|" +
-        "create_object" + "|" +
-        std::to_string (hsk_raw.m_channel_id) + "|" +
-        std::to_string (hsk_raw.m_enforcement_object_id) + "|" +
-        RulesFileParser::convert_context_type_definition (static_cast<ContextType> (hsk_raw.m_context_definition)) + "|" +
-        RulesFileParser::convert_differentiation_definitions (static_cast<ContextType> (hsk_raw.m_context_definition), hsk_raw.m_operation_type) + "|" +
-        RulesFileParser::convert_differentiation_definitions (static_cast<ContextType> (hsk_raw.m_context_definition), hsk_raw.m_operation_context) + "|" +
-        RulesFileParser::convert_object_type (static_cast<EnforcementObjectType> (hsk_raw.m_enforcement_object_type)) + "|" +
-        std::to_string (hsk_raw.m_property_first) + "|" +
-        std::to_string (hsk_raw.m_property_second) + "|";
+    hsk_rule += std::to_string (CREATE_HSK_RULE) + "|" + std::to_string (hsk_raw.m_rule_id) + "|"
+        + "create_object" + "|" + std::to_string (hsk_raw.m_channel_id) + "|"
+        + std::to_string (hsk_raw.m_enforcement_object_id) + "|"
+        + RulesFileParser::convert_context_type_definition (
+            static_cast<ContextType> (hsk_raw.m_context_definition))
+        + "|"
+        + RulesFileParser::convert_differentiation_definitions (
+            static_cast<ContextType> (hsk_raw.m_context_definition),
+            hsk_raw.m_operation_type)
+        + "|"
+        + RulesFileParser::convert_differentiation_definitions (
+            static_cast<ContextType> (hsk_raw.m_context_definition),
+            hsk_raw.m_operation_context)
+        + "|"
+        + RulesFileParser::convert_object_type (
+            static_cast<EnforcementObjectType> (hsk_raw.m_enforcement_object_type))
+        + "|" + std::to_string (hsk_raw.m_property_first) + "|"
+        + std::to_string (hsk_raw.m_property_second) + "|";
 }
-
 
 void PolicyGenerator::ConvertDifferentiationRuleRawToString (const DifferentiationRuleRaw& diff_raw,
     std::string& dif_rule)
@@ -164,45 +177,43 @@ void PolicyGenerator::convert_enforcement_rule_string (const EnforcementRuleRaw&
     // clean possible old values of string
     enf_rule.clear ();
 
-    std::string operation = RulesFileParser::convert_enforcement_operation (enf_raw.m_enforcement_operation);
+    std::string operation
+        = RulesFileParser::convert_enforcement_operation (enf_raw.m_enforcement_operation);
     std::string object_type = "drl";
     if (operation == "noop") {
         object_type = "noop";
     }
 
     // pass EnforcementRuleRaw to string format
-    enf_rule += std::to_string (CREATE_ENF_RULE) + "|"
-        + std::to_string (enf_raw.m_rule_id) + "|" +
-        std::to_string (enf_raw.m_channel_id) + "|" +
-        std::to_string (enf_raw.m_enforcement_object_id) + "|" +
-        object_type + "|" +
-        operation + "|" +
-        std::to_string (enf_raw.m_property_first) + "|" +
-        std::to_string (enf_raw.m_property_second) + "|" +
-        std::to_string (enf_raw.m_property_third) + "|";
+    enf_rule += std::to_string (CREATE_ENF_RULE) + "|" + std::to_string (enf_raw.m_rule_id) + "|"
+        + std::to_string (enf_raw.m_channel_id) + "|"
+        + std::to_string (enf_raw.m_enforcement_object_id) + "|" + object_type + "|" + operation
+        + "|" + std::to_string (enf_raw.m_property_first) + "|"
+        + std::to_string (enf_raw.m_property_second) + "|"
+        + std::to_string (enf_raw.m_property_third) + "|";
 }
 
-void PolicyGenerator::convert_enforcement_rule_with_time_string (const EnforcementRuleWithTimeRaw& enf_raw,
+void PolicyGenerator::convert_enforcement_rule_with_time_string (
+    const EnforcementRuleWithTimeRaw& enf_raw,
     std::string& enf_rule)
 {
     // clean possible old values of string
     enf_rule.clear ();
 
-    std::string operation = RulesFileParser::convert_enforcement_operation (enf_raw.m_enforcement_operation);
+    std::string operation
+        = RulesFileParser::convert_enforcement_operation (enf_raw.m_enforcement_operation);
     std::string object_type = "drl";
     if (operation == "noop") {
         object_type = "noop";
     }
 
     // pass EnforcementRuleRaw to string format
-    enf_rule += std::to_string (CREATE_ENF_RULE) + "|"
-        + std::to_string (enf_raw.m_rule_id) + "|" +
-        std::to_string (enf_raw.m_channel_id) + "|" +
-        std::to_string (enf_raw.m_enforcement_object_id) + "|" +
-        operation + "|" +
-        std::to_string (enf_raw.m_property_first) + "|" +
-        std::to_string (enf_raw.m_property_second) + "|" +
-        std::to_string (enf_raw.m_property_third) + "|";
+    enf_rule += std::to_string (CREATE_ENF_RULE) + "|" + std::to_string (enf_raw.m_rule_id) + "|"
+        + std::to_string (enf_raw.m_channel_id) + "|"
+        + std::to_string (enf_raw.m_enforcement_object_id) + "|" + operation + "|"
+        + std::to_string (enf_raw.m_property_first) + "|"
+        + std::to_string (enf_raw.m_property_second) + "|"
+        + std::to_string (enf_raw.m_property_third) + "|";
 }
 
-} // namespace shepherd
+} // namespace cheferd

@@ -3,9 +3,9 @@
  *   Copyright (c) 2020 INESC TEC.
  **/
 
-#include <shepherd/utils/logging.hpp>
+#include <cheferd/utils/logging.hpp>
 
-namespace shepherd {
+namespace cheferd {
 
 //    static variable debug_enabled
 bool Logging::debug_enabled_ = false;
@@ -13,14 +13,14 @@ bool Logging::debug_enabled_ = false;
 //    Logging default constructor.
 Logging::Logging () :
     logger_name_ { "basic_logger" },
-    log_file_path_ { "/tmp/shepherd_info.txt" },
+    log_file_path_ { "/tmp/cheferd_info.txt" },
     logger_ {}
 { }
 
 //    Logging parameterized constructor.
 Logging::Logging (bool debug) :
     logger_name_ { "basic_logger" },
-    log_file_path_ { "/tmp/shepherd_info.txt" },
+    log_file_path_ { "/tmp/cheferd_info.txt" },
     logger_ {}
 {
     if (debug) {
@@ -62,4 +62,4 @@ bool Logging::is_debug_enabled ()
     return debug_enabled_;
 }
 
-} // namespace shepherd
+} // namespace cheferd

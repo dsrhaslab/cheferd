@@ -3,10 +3,10 @@
  *   Copyright (c) 2020 INESC TEC.
  **/
 
+#include <cheferd/utils/rules_file_parser.hpp>
 #include <limits>
-#include <shepherd/utils/rules_file_parser.hpp>
 
-namespace shepherd {
+namespace cheferd {
 
 // RulesFileParser default constructor.
 RulesFileParser::RulesFileParser ()
@@ -51,7 +51,6 @@ constexpr inline unsigned int operator""_ (char const* string_value, size_t)
 {
     return hash (string_value);
 }
-
 
 // get_rule_type call. Get the type of the rules in the file.
 RuleType RulesFileParser::get_rule_type () const
@@ -106,11 +105,10 @@ int RulesFileParser::read_rules_from_file (const std::string& path)
     return total_rules;
 }
 
-
 // convertHousekeepingOperation call. Convert a string to a HousekeepingOperation.
 HousekeepingOperation RulesFileParser::convert_housekeeping_operation (const std::string& operation)
 {
-    switch (shepherd::hash (operation.data ())) {
+    switch (cheferd::hash (operation.data ())) {
         case "create_channel"_:
             return HousekeepingOperation::create_channel;
         case "create_object"_:
@@ -133,11 +131,11 @@ std::string RulesFileParser::convert_object_type (const EnforcementObjectType& o
 
 // convertEnforcementOperation call. Convert a string to an enforcement operation.
 int RulesFileParser::convert_enforcement_operation (const EnforcementObjectType& object_type,
-                                                const std::string& operation)
+    const std::string& operation)
 {
     switch (object_type) {
         case EnforcementObjectType::DRL:
-            switch (shepherd::hash (operation.data ())) {
+            switch (cheferd::hash (operation.data ())) {
                 case "init"_:
                     return 1;
                 case "rate"_:
@@ -167,12 +165,10 @@ std::string RulesFileParser::convert_enforcement_operation (const int& operation
     }
 }
 
-
-
 // convert_context_type_definition call. Convert string-based ContextType value to long.
 int RulesFileParser::convert_context_type_definition (const std::string& context_type)
 {
-    switch (shepherd::hash (context_type.data ())) {
+    switch (cheferd::hash (context_type.data ())) {
         case "general"_:
             return static_cast<long> (ContextType::PAIO_GENERAL);
         case "posix"_:
@@ -211,13 +207,12 @@ std::string RulesFileParser::convert_context_type_definition (const ContextType&
     }
 }
 
-
 // convert_differentiation_definitions call. Convert I/O differentiation and classification
 // definitions from string to long.
 long RulesFileParser::convert_differentiation_definitions (const std::string& context_type,
     const std::string& definition)
 {
-    switch (shepherd::hash (context_type.data ())) {
+    switch (cheferd::hash (context_type.data ())) {
         case "general"_:
             return convert_paio_general_definitions (definition);
         case "posix"_:
@@ -235,9 +230,8 @@ long RulesFileParser::convert_differentiation_definitions (const std::string& co
     }
 }
 
-
 std::string RulesFileParser::convert_differentiation_definitions (const ContextType& context_type,
-                                                 const int& definition)
+    const int& definition)
 {
     switch (context_type) {
         case ContextType::PAIO_GENERAL:
@@ -249,7 +243,8 @@ std::string RulesFileParser::convert_differentiation_definitions (const ContextT
         case ContextType::LSM_KVS_SIMPLE:
             return convert_posix_lsm_simple_definitions (static_cast<LSM_KVS_SIMPLE> (definition));
         case ContextType::LSM_KVS_DETAILED:
-            return convert_posix_lsm_detailed_definitions (static_cast<LSM_KVS_DETAILED> (definition));
+            return convert_posix_lsm_detailed_definitions (
+                static_cast<LSM_KVS_DETAILED> (definition));
         case ContextType::KVS:
             return convert_kvs_definitions (static_cast<KVS> (definition));
         default:
@@ -261,7 +256,7 @@ std::string RulesFileParser::convert_differentiation_definitions (const ContextT
 // string to long.
 long RulesFileParser::convert_paio_general_definitions (const std::string& general_definitions)
 {
-    switch (shepherd::hash (general_definitions.data ())) {
+    switch (cheferd::hash (general_definitions.data ())) {
         case "foreground"_:
             return static_cast<long> (PAIO_GENERAL::foreground);
         case "background"_:
@@ -275,7 +270,8 @@ long RulesFileParser::convert_paio_general_definitions (const std::string& gener
     }
 }
 
-std::string RulesFileParser::convert_paio_general_definitions (const PAIO_GENERAL& general_definitions)
+std::string RulesFileParser::convert_paio_general_definitions (
+    const PAIO_GENERAL& general_definitions)
 {
     switch (general_definitions) {
         case PAIO_GENERAL::foreground:
@@ -294,9 +290,9 @@ std::string RulesFileParser::convert_paio_general_definitions (const PAIO_GENERA
 // convert_posix_lsm_simple_definitions call. Convert POSIX_KVS_LSM_SIMPLE differentiation
 // definitions from string to long.
 long RulesFileParser::convert_posix_lsm_simple_definitions (
-        const std::string& posix_lsm_definitions)
+    const std::string& posix_lsm_definitions)
 {
-    switch (shepherd::hash (posix_lsm_definitions.data ())) {
+    switch (cheferd::hash (posix_lsm_definitions.data ())) {
         case "bg_flush"_:
             return static_cast<long> (LSM_KVS_SIMPLE::bg_flush);
         case "bg_compaction_high_priority"_:
@@ -310,7 +306,8 @@ long RulesFileParser::convert_posix_lsm_simple_definitions (
     }
 }
 
-std::string RulesFileParser::convert_posix_lsm_simple_definitions (const LSM_KVS_SIMPLE& posix_lsm_definitions)
+std::string RulesFileParser::convert_posix_lsm_simple_definitions (
+    const LSM_KVS_SIMPLE& posix_lsm_definitions)
 {
     switch (posix_lsm_definitions) {
         case LSM_KVS_SIMPLE::bg_flush:
@@ -329,9 +326,9 @@ std::string RulesFileParser::convert_posix_lsm_simple_definitions (const LSM_KVS
 // convert_posix_lsm_detailed_definitions call. Convert POSIX_KVS_LSM_DETAILED differentiation
 // definitions from string to long.
 long RulesFileParser::convert_posix_lsm_detailed_definitions (
-        const std::string& posix_lsm_definitions)
+    const std::string& posix_lsm_definitions)
 {
-    switch (shepherd::hash (posix_lsm_definitions.data ())) {
+    switch (cheferd::hash (posix_lsm_definitions.data ())) {
         case "bg_flush"_:
             return static_cast<long> (LSM_KVS_DETAILED::bg_flush);
         case "bg_compaction"_:
@@ -353,7 +350,8 @@ long RulesFileParser::convert_posix_lsm_detailed_definitions (
     }
 }
 
-std::string RulesFileParser::convert_posix_lsm_detailed_definitions (const LSM_KVS_DETAILED& posix_lsm_definitions)
+std::string RulesFileParser::convert_posix_lsm_detailed_definitions (
+    const LSM_KVS_DETAILED& posix_lsm_definitions)
 {
     switch (posix_lsm_definitions) {
         case LSM_KVS_DETAILED::bg_flush:
@@ -377,11 +375,10 @@ std::string RulesFileParser::convert_posix_lsm_detailed_definitions (const LSM_K
     }
 }
 
-
 // convert_posix_definitions call. Convert POSIX differentiation definitions from string to long.
 long RulesFileParser::convert_posix_definitions (const std::string& posix_definitions)
 {
-    switch (shepherd::hash (posix_definitions.data ())) {
+    switch (cheferd::hash (posix_definitions.data ())) {
         case "read"_:
             return static_cast<long> (POSIX::read);
         case "write"_:
@@ -566,15 +563,10 @@ long RulesFileParser::convert_posix_definitions (const std::string& posix_defini
             return static_cast<long> (POSIX::metadata);
         case "total"_:
             return static_cast<long> (POSIX::total);
-        case "mds1"_:
-            return static_cast<long> (POSIX::mds1);
-        case "mds2"_:
-            return static_cast<long> (POSIX::mds2);
         default:
             return static_cast<long> (POSIX::no_op);
     }
 }
-
 
 std::string RulesFileParser::convert_posix_definitions (const POSIX& posix_definitions)
 {
@@ -595,16 +587,30 @@ std::string RulesFileParser::convert_posix_definitions (const POSIX& posix_defin
             return "open";
         case POSIX::close:
             return "close";
+        case POSIX::getxattr:
+            return "getxattr";
+        case POSIX::rename:
+            return "rename";
+        case POSIX::setxattr:
+            return "setxattr";
+        case POSIX::mkdir:
+            return "mkdir";
+        case POSIX::mknod:
+            return "mknod";
+        case POSIX::rmdir:
+            return "rmdir";
+        case POSIX::statfs:
+            return "statfs";
+        case POSIX::sync:
+            return "sync";
+        case POSIX::unlink:
+            return "unlink";
         case POSIX::data:
             return "data";
         case POSIX::metadata:
             return "metadata";
         case POSIX::total:
             return "total";
-        case POSIX::mds1:
-            return "mds1";
-        case POSIX::mds2:
-            return "mds2";
         default:
             return "no_op";
     }
@@ -614,7 +620,7 @@ std::string RulesFileParser::convert_posix_definitions (const POSIX& posix_defin
 // to long.
 long RulesFileParser::convert_posix_meta_definitions (const std::string& posix_meta_definitions)
 {
-    switch (shepherd::hash (posix_meta_definitions.data ())) {
+    switch (cheferd::hash (posix_meta_definitions.data ())) {
         case "foreground"_:
             return static_cast<long> (POSIX_META::foreground);
         case "background"_:
@@ -640,7 +646,8 @@ long RulesFileParser::convert_posix_meta_definitions (const std::string& posix_m
     }
 }
 
-std::string RulesFileParser::convert_posix_meta_definitions (const POSIX_META& posix_meta_definitions)
+std::string RulesFileParser::convert_posix_meta_definitions (
+    const POSIX_META& posix_meta_definitions)
 {
     switch (posix_meta_definitions) {
         case POSIX_META::foreground:
@@ -671,7 +678,7 @@ std::string RulesFileParser::convert_posix_meta_definitions (const POSIX_META& p
 // convert_kvs_definitions call. Convert KVS differentiation definitions from string to long.
 long RulesFileParser::convert_kvs_definitions (const std::string& kvs_definitions)
 {
-    switch (shepherd::hash (kvs_definitions.data ())) {
+    switch (cheferd::hash (kvs_definitions.data ())) {
         case "put"_:
             return static_cast<long> (KVS::put);
         case "get"_:
@@ -724,7 +731,7 @@ std::string RulesFileParser::convert_kvs_definitions (const KVS& kvs_definitions
 // get_create_channel_rules call. Convert string-based rules of create_channel type to the
 // respective HousekeepingRule.
 int RulesFileParser::get_create_channel_rules (std::vector<HousekeepingCreateChannelRaw>& hsk_rules,
-                                           int total_rules)
+    int total_rules)
 {
     int rules_passed = 0;
     if (total_rules == -1) {
@@ -749,10 +756,13 @@ int RulesFileParser::get_create_channel_rules (std::vector<HousekeepingCreateCha
                 channel_rule.m_rule_id = std::stoll (staged_rule[0]);
                 channel_rule.m_rule_type = static_cast<int> (HousekeepingOperation::create_channel);
                 channel_rule.m_channel_id = std::stol (staged_rule[2]);
-                channel_rule.m_context_definition = this->convert_context_type_definition (staged_rule[3]);
+                channel_rule.m_context_definition
+                    = this->convert_context_type_definition (staged_rule[3]);
                 channel_rule.m_workflow_id = std::stol (staged_rule[4]);
-                channel_rule.m_operation_type = this->convert_differentiation_definitions (staged_rule[3], staged_rule[5]);
-                channel_rule.m_operation_context = this->convert_differentiation_definitions (staged_rule[3], staged_rule[6]);
+                channel_rule.m_operation_type
+                    = this->convert_differentiation_definitions (staged_rule[3], staged_rule[5]);
+                channel_rule.m_operation_context
+                    = this->convert_differentiation_definitions (staged_rule[3], staged_rule[6]);
 
                 hsk_rules.push_back (channel_rule);
                 rules_passed++;
@@ -769,7 +779,8 @@ int RulesFileParser::get_create_channel_rules (std::vector<HousekeepingCreateCha
 
 // get_create_object_rules call. Convert string-based rules of create_object type to the respective
 // HousekeepingRule.
-int RulesFileParser::get_create_object_rules (std::vector<HousekeepingCreateObjectRaw>& hsk_rules, int total_rules)
+int RulesFileParser::get_create_object_rules (std::vector<HousekeepingCreateObjectRaw>& hsk_rules,
+    int total_rules)
 {
     int rules_passed = 0;
     if (total_rules == -1) {
@@ -792,10 +803,14 @@ int RulesFileParser::get_create_object_rules (std::vector<HousekeepingCreateObje
                 object_rule.m_rule_type = static_cast<int> (HousekeepingOperation::create_object);
                 object_rule.m_channel_id = std::stol (staged_rule[2]);
                 object_rule.m_enforcement_object_id = std::stol (staged_rule[3]);
-                object_rule.m_context_definition = this->convert_context_type_definition (staged_rule[4]);
-                object_rule.m_operation_type = this->convert_differentiation_definitions (staged_rule[4], staged_rule[5]);
-                object_rule.m_operation_context = this->convert_differentiation_definitions (staged_rule[4], staged_rule[6]);
-                object_rule.m_enforcement_object_type = static_cast<long> (this->convert_object_type (staged_rule[7]));
+                object_rule.m_context_definition
+                    = this->convert_context_type_definition (staged_rule[4]);
+                object_rule.m_operation_type
+                    = this->convert_differentiation_definitions (staged_rule[4], staged_rule[5]);
+                object_rule.m_operation_context
+                    = this->convert_differentiation_definitions (staged_rule[4], staged_rule[6]);
+                object_rule.m_enforcement_object_type
+                    = static_cast<long> (this->convert_object_type (staged_rule[7]));
                 object_rule.m_property_first = std::stol (staged_rule[8]);
                 object_rule.m_property_second = std::stol (staged_rule[9]);
 
@@ -813,7 +828,8 @@ int RulesFileParser::get_create_object_rules (std::vector<HousekeepingCreateObje
 }
 
 // get_enforcement_rules call. Convert stage rules of type ENF to the respective RAW structure.
-int RulesFileParser::get_enforcement_rules (std::vector<EnforcementRuleRaw>& enf_rules, int total_rules)
+int RulesFileParser::get_enforcement_rules (std::vector<EnforcementRuleRaw>& enf_rules,
+    int total_rules)
 {
     int rules_passed = 0;
 
@@ -824,8 +840,8 @@ int RulesFileParser::get_enforcement_rules (std::vector<EnforcementRuleRaw>& enf
     for (auto& staged_rule : this->m_staged_rules) {
         // convert string to enforcement operation type
         int operation_type
-                = this->convert_enforcement_operation (this->convert_object_type (staged_rule[3]),
-                                                       staged_rule[4]);
+            = this->convert_enforcement_operation (this->convert_object_type (staged_rule[3]),
+                staged_rule[4]);
 
         EnforcementRuleRaw enforcement_rule {};
         enforcement_rule.m_rule_id = std::stoll (staged_rule[0]);
@@ -847,7 +863,6 @@ int RulesFileParser::get_enforcement_rules (std::vector<EnforcementRuleRaw>& enf
 
     return rules_passed;
 }
-
 
 // erase_rules call. Remove all rules from the m_staged_rules container.
 int RulesFileParser::erase_rules ()
@@ -873,4 +888,4 @@ void RulesFileParser::print_rules () const
     }
 }
 
-} // namespace shepherd
+} // namespace cheferd

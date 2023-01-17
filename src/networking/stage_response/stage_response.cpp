@@ -3,9 +3,9 @@
  *   Copyright (c) 2020 INESC TEC.
  **/
 
-#include "shepherd/networking/stage_response/stage_response.hpp"
+#include "cheferd/networking/stage_response/stage_response.hpp"
 
-namespace shepherd {
+namespace cheferd {
 
 StageResponse::StageResponse () = default;
 
@@ -24,4 +24,4 @@ std::string StageResponse::toString () const
     return "StageReponse::";
 }
 
-} // namespace shepherd
+} // namespace cheferd

@@ -3,9 +3,9 @@
  *   Copyright (c) 2020 INESC TEC.
  **/
 
-#include <shepherd/utils/status.hpp>
+#include <cheferd/utils/status.hpp>
 
-namespace shepherd {
+namespace cheferd {
 
 PStatus::PStatus () : state_ { StatusCode::nostatus }
 { }
@@ -71,4 +71,4 @@ std::string PStatus::toString ()
     return state_string;
 }
 
-} // namespace shepherd
+} // namespace cheferd

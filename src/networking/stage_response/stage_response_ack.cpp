@@ -3,9 +3,9 @@
  *   Copyright (c) 2020 INESC TEC.
  **/
 
-#include "shepherd/networking/stage_response/stage_response_ack.hpp"
+#include "cheferd/networking/stage_response/stage_response_ack.hpp"
 
-namespace shepherd {
+namespace cheferd {
 
 StageResponseACK::StageResponseACK () : ack_value_ { 0 }
 { }
@@ -35,4 +35,4 @@ std::string StageResponseACK::toString () const
     return return_value_t;
 }
 
-} // namespace shepherd
+} // namespace cheferd
