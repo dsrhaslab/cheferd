@@ -2,8 +2,8 @@
 
 Core Controller:
 
---controller 0 --core_address 0.0.0.0:50051 --control 1
+./cheferd_exec --config_file ../files/core_config_file 
 
 Local Controller:
 
---controller 1 --local_address 0.0.0.0:50052 --core_address 0.0.0.0:50051
+./cheferd_exec --config_file ../files/local_config_file 
