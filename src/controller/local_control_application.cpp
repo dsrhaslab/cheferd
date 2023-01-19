@@ -23,7 +23,9 @@ LocalControlApplication::LocalControlApplication (const std::string& core_addres
     pending_data_sessions_ {},
     operation_to_channel_object {},
     core_stub_ (LocalToGlobal::NewStub (
-        grpc::CreateChannel (core_address, grpc::InsecureChannelCredentials ())))
+        grpc::CreateChannel (core_address, grpc::InsecureChannelCredentials ()))),
+    m_active_data_plane_sessions { 0 },
+    m_pending_data_plane_sessions { 0 }
 {
     Logging::log_info ("LocalControlApplication initialized.");
     initialize ();
@@ -47,7 +49,9 @@ LocalControlApplication::LocalControlApplication (std::vector<std::string>* rule
     pending_data_sessions_ {},
     operation_to_channel_object {},
     core_stub_ (LocalToGlobal::NewStub (
-        grpc::CreateChannel (core_address, grpc::InsecureChannelCredentials ())))
+        grpc::CreateChannel (core_address, grpc::InsecureChannelCredentials ()))),
+    m_active_data_plane_sessions { 0 },
+    m_pending_data_plane_sessions { 0 }
 {
     Logging::log_info ("LocalControlApplication parameterized constructor.");
 
@@ -531,58 +535,7 @@ Status LocalControlApplication::MarkStageReady (ServerContext* context,
 */
 }
 
-Status LocalControlApplication::CreateHouseKeepingRuleChannel (ServerContext* context,
-    const controllers_grpc_interface::HousekeepingCreateChannelString* request,
-    controllers_grpc_interface::ACK* reply)
-{
-    std::cout << "CreateHouseKeepingRuleChannelPhase2 from core controller" << std::endl;
 
-    Status status = LocalPassthru (request->m_stage_name () + "+" + request->m_stage_env (),
-        request->m_rule ());
-
-    if (status.ok ()) {
-        reply->set_m_message (1);
-    } else {
-        reply->set_m_message (0);
-    }
-
-    return status;
-}
-
-Status LocalControlApplication::CreateHouseKeepingRuleObject (ServerContext* context,
-    const controllers_grpc_interface::HousekeepingCreateObjectString* request,
-    controllers_grpc_interface::ACK* reply)
-{
-    std::cout << "CreateHouseKeepingRuleObject from core controller" << std::endl;
-
-    Status status = LocalPassthru (request->m_stage_name () + "+" + request->m_stage_env (),
-        request->m_rule ());
-
-    if (status.ok ()) {
-        reply->set_m_message (1);
-    } else {
-        reply->set_m_message (0);
-    }
-
-    return status;
-}
-
-Status LocalControlApplication::ExecuteHousekeepingRules (ServerContext* context,
-    const controllers_grpc_interface::Execute* request,
-    controllers_grpc_interface::ACK* reply)
-{
-    std::cout << "ExecuteHousekeepingRules from core controller" << std::endl;
-
-    Status status = LocalPassthru (request->m_stage_name () + "+" + request->m_stage_env (), "");
-
-    if (status.ok ()) {
-        reply->set_m_message (1);
-    } else {
-        reply->set_m_message (0);
-    }
-
-    return status;
-}
 
 Status LocalControlApplication::CreateEnforcementRule (ServerContext* context,
     const controllers_grpc_interface::EnforcementRules* request,

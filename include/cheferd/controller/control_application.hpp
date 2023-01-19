@@ -21,10 +21,6 @@ namespace cheferd {
 class ControlApplication {
 
 protected:
-    std::atomic<int> m_active_local_controller_sessions;
-    std::atomic<int> m_pending_local_controller_sessions;
-    std::atomic<int> m_active_data_plane_sessions;
-    std::atomic<int> m_pending_data_plane_sessions;
 
     const uint64_t m_feedback_loop_sleep_time;
 
@@ -43,10 +39,6 @@ public:
      * ControlApplication default constructor.
      */
     ControlApplication () :
-        m_active_local_controller_sessions { 0 },
-        m_pending_local_controller_sessions { 0 },
-        m_active_data_plane_sessions { 0 },
-        m_pending_data_plane_sessions { 0 },
         m_feedback_loop_sleep_time { option_default_control_application_sleep },
         working_application_ { true },
         housekeeping_rules_ptr_ {}
@@ -58,10 +50,6 @@ public:
      */
     explicit ControlApplication (std::vector<std::string>* rules_ptr,
         const uint64_t& cycle_sleep_time) :
-        m_active_local_controller_sessions { 0 },
-        m_pending_local_controller_sessions { 0 },
-        m_active_data_plane_sessions { 0 },
-        m_pending_data_plane_sessions { 0 },
         m_feedback_loop_sleep_time { cycle_sleep_time },
         working_application_ { true },
         housekeeping_rules_ptr_ { rules_ptr }
@@ -72,10 +60,6 @@ public:
      * @param rules_ptr
      */
     explicit ControlApplication (const uint64_t& cycle_sleep_time) :
-        m_active_local_controller_sessions { 0 },
-        m_pending_local_controller_sessions { 0 },
-        m_active_data_plane_sessions { 0 },
-        m_pending_data_plane_sessions { 0 },
         m_feedback_loop_sleep_time { cycle_sleep_time },
         working_application_ { true },
         housekeeping_rules_ptr_ {}

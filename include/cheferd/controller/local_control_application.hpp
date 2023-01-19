@@ -23,9 +23,6 @@
 using controllers_grpc_interface::ACK;
 using controllers_grpc_interface::ConnectReply;
 using controllers_grpc_interface::ConnectRequest;
-using controllers_grpc_interface::Execute;
-using controllers_grpc_interface::HousekeepingCreateChannelString;
-using controllers_grpc_interface::HousekeepingCreateObjectString;
 using controllers_grpc_interface::StageInfo;
 using controllers_grpc_interface::StageReadyRaw;
 using controllers_grpc_interface::StatsGlobalMap;
@@ -65,6 +62,9 @@ private:
     std::unique_ptr<LocalToGlobal::Stub> core_stub_;
 
     std::unique_ptr<Server> server;
+
+    std::atomic<int> m_active_data_plane_sessions;
+    std::atomic<int> m_pending_data_plane_sessions;
 
     /**
      * initialize:
@@ -123,17 +123,6 @@ private:
         const controllers_grpc_interface::StageReadyRaw* request,
         controllers_grpc_interface::ACK* reply) override;
 
-    Status CreateHouseKeepingRuleChannel (ServerContext* context,
-        const controllers_grpc_interface::HousekeepingCreateChannelString* request,
-        controllers_grpc_interface::ACK* reply) override;
-    Status CreateHouseKeepingRuleObject (ServerContext* context,
-        const controllers_grpc_interface::HousekeepingCreateObjectString* request,
-        controllers_grpc_interface::ACK* reply) override;
-
-    Status ExecuteHousekeepingRules (ServerContext* context,
-        const controllers_grpc_interface::Execute* request,
-        controllers_grpc_interface::ACK* reply) override;
-
     Status CreateEnforcementRule (ServerContext* context,
         const controllers_grpc_interface::EnforcementRules* request,
         controllers_grpc_interface::ACK* reply) override;
@@ -146,7 +135,7 @@ private:
         const controllers_grpc_interface::ControlOperation* request,
         StatsGlobalMap* reply) override;
 
-    Status LocalPassthru (const std::string stage_name_env, const std::string rule);
+    Status LocalPassthru (std::string stage_name_env, std::string rule);
 
 public:
     LocalControlApplication (const std::string& core_address, const std::string& local_address);
@@ -165,7 +154,7 @@ public:
 
     void stop_feedback_loop ();
 
-    void parse_rule (const std::string& rule, std::vector<std::string>* tokens, const char c);
+    void parse_rule (const std::string& rule, std::vector<std::string>* tokens, char c);
 };
 
 } // namespace cheferd

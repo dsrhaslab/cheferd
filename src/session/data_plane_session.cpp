@@ -125,30 +125,6 @@ DataPlaneSession::SendRule (int socket, const std::string& rule, ControlOperatio
             break;
         }
 
-        case CREATE_HSK_RULE: {
-            std::cout << "CREATE_HSK_RULE ... \n";
-            // create temporary ACK structure
-            ACK ack {};
-            // invoke SouthboundInterface's CreateHousekeepingRule
-            status = interface_.create_housekeeping_rule (socket, operation, rule, ack);
-            // enqueue response of data plane stage from CreateHousekeepingRule request
-            EnqueueResponseInCompletionQueue (
-                std::make_unique<StageResponseACK> (CREATE_HSK_RULE, ack.m_message));
-            break;
-        }
-
-        case EXEC_HSK_RULES: {
-            // create temporary ACK structure
-            ACK ack {};
-            // invoke SouthboundInterface's ExecuteHousekeepingRule
-            status = interface_.ExecuteHousekeepingRules (socket, operation, rule, ack);
-            // enqueue response of data plane stage from ExecuteHousekeepingRule
-            // request
-            EnqueueResponseInCompletionQueue (
-                std::make_unique<StageResponseACK> (EXEC_HSK_RULES, ack.m_message));
-            break;
-        }
-
         case CREATE_ENF_RULE: {
             // create temporary ACK structure
             ACK ack {};

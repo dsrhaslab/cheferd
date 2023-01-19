@@ -34,9 +34,6 @@ private:
     void fill_create_object_rule (HousekeepingCreateObjectRaw* hsk_object_obj,
         const std::vector<std::string>& tokens);
 
-    // void fillHousekeepingAssign (HousekeepingAssignRaw* hsk_object, const
-    // std::vector<std::string>& tokens);
-
     void fill_enforcement_rule (EnforcementRuleRaw* enf_object,
         const std::vector<std::string>& tokens);
 

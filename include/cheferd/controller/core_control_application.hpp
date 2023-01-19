@@ -70,15 +70,17 @@ private:
     std::unordered_map<std::string, long> job_rates;
     std::unordered_map<std::string, long> job_previous_rates;
 
-    // UsedID -> (JobsID). Tracks each user current job.
-    // (e.g., <"user1", ("job1","job2")
-    std::unordered_map<std::string, std::unordered_set<std::string>> user_job_tracker;
-
     // Maximum allowed limit in the system.
     long maximum_limit;
 
     // Operations supported by the controller.
     std::unordered_set<std::string> active_ops;
+
+    std::atomic<int> m_active_local_controller_sessions;
+    std::atomic<int> m_pending_local_controller_sessions;
+    std::atomic<int> m_active_data_plane_sessions;
+    std::atomic<int> m_pending_data_plane_sessions;
+
 
     /**
      * initialize: Fills housekeeping rules and operations supported by control application.
@@ -117,7 +119,7 @@ private:
      * @param statistics_ptr
      */
     void compute_and_enforce_equal_static_rules (
-        const std::unordered_map<std::string, std::unique_ptr<StageResponse>>& s_stats);
+        const std::unordered_map<std::string, std::unique_ptr<StageResponse>>& d_stats);
 
     void compute_and_enforce_dynamic_vanilla_rules (
         const std::unordered_map<std::string, std::unique_ptr<StageResponse>>& d_stats);

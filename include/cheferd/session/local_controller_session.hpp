@@ -104,7 +104,7 @@ public:
      * LocalControllerSession default constructor.
      * @param user_address User address identifier of the local controller.
      */
-    LocalControllerSession (const std::string& user_address);
+    explicit LocalControllerSession (const std::string& user_address);
 
     /**
      * LocalControllerSession parameterized constructor.

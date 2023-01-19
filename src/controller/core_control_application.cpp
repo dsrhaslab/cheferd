@@ -29,9 +29,12 @@ CoreControlApplication::CoreControlApplication (ControlType control_type,
     job_demands {},
     job_rates {},
     job_previous_rates {},
-    user_job_tracker {},
     maximum_limit { system_limit },
-    active_ops {}
+    active_ops {},
+    m_active_local_controller_sessions { 0 },
+    m_pending_local_controller_sessions { 0 },
+    m_active_data_plane_sessions { 0 },
+    m_pending_data_plane_sessions { 0 }
 {
     Logging::log_info ("CoreControlApplication parameterized constructor.");
 }
@@ -117,15 +120,6 @@ void CoreControlApplication::register_stage_session (const std::string& local_co
         local_to_stages[local_controller_address] = stages;
     } else {
         existing_local_to_stages->second.push_back (stage_name_env);
-    }
-
-    auto existing_user_jobs = user_job_tracker.find (stage_user);
-    if (existing_user_jobs == user_job_tracker.end ()) {
-        std::unordered_set<std::string> jobs;
-        jobs.insert (stage_name);
-        user_job_tracker.emplace (stage_user, jobs);
-    } else {
-        existing_user_jobs->second.insert (stage_name);
     }
 
     std::pair<std::string, std::string> stage_and_env = std::make_pair (stage_name, stage_env);
@@ -303,7 +297,7 @@ void CoreControlApplication::execute_feedback_loop ()
 
         switch (m_control_type) {
             case ControlType::STATIC: {
-                const std::unordered_map<std::string, std::unique_ptr<StageResponse>>& s_stats
+                const std::unordered_map<std::string, std::unique_ptr<StageResponse>>& d_stats
                     = this->collect_statistics_global ();
 
                 auto end = std::chrono::steady_clock::now ();
@@ -314,7 +308,7 @@ void CoreControlApplication::execute_feedback_loop ()
                     + "[µs]");
 
                 if (this->m_active_local_controller_sessions.load () > 0)
-                    this->compute_and_enforce_equal_static_rules (s_stats);
+                    this->compute_and_enforce_equal_static_rules (d_stats);
 
                 break;
             }
@@ -441,14 +435,6 @@ void CoreControlApplication::remove_stage (const std::string& stage_name_env)
             job_rates.erase (stage_info.m_stage_name);
             job_previous_rates.erase (stage_info.m_stage_name);
             job_demands.erase (stage_info.m_stage_name);
-
-            std::unordered_set<std::string> jobs = user_job_tracker.at (stage_info.m_stage_user);
-
-            jobs.erase (stage_info.m_stage_name);
-
-            if (jobs.empty ()) {
-                user_job_tracker.erase (stage_info.m_stage_user);
-            }
 
             Logging::log_debug ("ControlApplication: No local sessions with app");
         }
@@ -617,7 +603,7 @@ void CoreControlApplication::parse_rule_with_break (const std::string& rule,
 }
 
 void CoreControlApplication::compute_and_enforce_equal_static_rules (
-    const std::unordered_map<std::string, std::unique_ptr<StageResponse>>& s_stats)
+    const std::unordered_map<std::string, std::unique_ptr<StageResponse>>& d_stats)
 {
 
     std::string static_rule = dequeue_rule_from_queue ();
@@ -797,7 +783,7 @@ void CoreControlApplication::compute_and_enforce_dynamic_vanilla_rules (
     std::string operation = update_job_demands ();
 
     // Check if there are active jobs to control.
-    int current_jobs = job_location_tracker.size ();
+    long current_jobs = job_location_tracker.size ();
     if (current_jobs > 0) {
 
         // Assign all bandwidth to leftover_iops
@@ -857,7 +843,7 @@ void CoreControlApplication::compute_and_enforce_dynamic_leftover_rules (
     std::string operation = update_job_demands ();
 
     // Check if there are active jobs to control.
-    int current_jobs = job_location_tracker.size ();
+    long current_jobs = job_location_tracker.size ();
     if (current_jobs > 0) {
 
         // Assign all bandwidth to leftover_iops
@@ -884,7 +870,7 @@ void CoreControlApplication::compute_and_enforce_dynamic_leftover_rules (
 
                         if (stage_exists == (*response_ptr->m_stats_ptr.get ()).end ()) {
 
-                            double current_rate = 1;
+                            long current_rate = 1;
                             total_app_rate += current_rate;
                             Logging::log_debug ("NOT EXIST");
                         } else {
@@ -966,11 +952,13 @@ void CoreControlApplication::compute_and_enforce_dynamic_leftover_rules (
         for (auto const& app : job_location_tracker) {
 
             // validate if assigned rate surpasses the changing bandwidth threshold
+            auto rates_difference = abs (job_rates[app.first] - job_previous_rates[app.first]);
+
+            // validate if assigned rate surpasses the changing bandwidth threshold
             if (!change_in_system
-                && (abs (job_rates[app.first] - job_previous_rates[app.first])
-                        < (job_rates[app.first] * 0.01)
+                && (rates_difference < (job_rates[app.first] * 0.01)
                     || (system_total_rate < 0.95 * maximum_limit
-                        && abs (job_rates[app.first] - job_previous_rates[app.first])
+                        && rates_difference
                             < (job_rates[app.first] * 0.05)))) {
                 maintained_rate += job_previous_rates[app.first];
                 maintain_previous_job_rate[app.first] = true;

@@ -98,30 +98,6 @@ PStatus LocalControllerSession::SendRule (const std::string& user_address,
             break;
         }
 
-        case CREATE_HSK_RULE: {
-            std::cout << "CREATE_HSK_RULE ... \n";
-            // create temporary ACK structure
-            ACK ack {};
-            // invoke SouthboundInterface's CreateHousekeepingRule
-            status = interface_.create_housekeeping_rule (user_address, operation, rule, ack);
-            // enqueue response of data plane stage from CreateHousekeepingRule request
-            EnqueueResponseInCompletionQueue (
-                std::make_unique<StageResponseACK> (CREATE_HSK_RULE, ack.m_message));
-            break;
-        }
-
-        case EXEC_HSK_RULES: {
-            // create temporary ACK structure
-            ACK ack {};
-            // invoke SouthboundInterface's ExecuteHousekeepingRule
-            status = interface_.ExecuteHousekeepingRules (user_address, operation, rule, ack);
-            // enqueue response of data plane stage from ExecuteHousekeepingRule
-            // request
-            EnqueueResponseInCompletionQueue (
-                std::make_unique<StageResponseACK> (EXEC_HSK_RULES, ack.m_message));
-            break;
-        }
-
         case CREATE_ENF_RULE: {
             // create temporary ACK structure
             ACK ack {};
@@ -135,21 +111,6 @@ PStatus LocalControllerSession::SendRule (const std::string& user_address,
 
             break;
         }
-
-        case REMOVE_RULE: {
-            // create temporary ACK structure
-            ACK ack {};
-            // invoke SouthboundInterface's RemoveRule
-            // status = interface_.RemoveRule (socket, operation, operation->m_operation_id, ack);
-            // enqueue response of data plane stage from RemoveRule request
-            EnqueueResponseInCompletionQueue (
-                std::make_unique<StageResponseACK> (REMOVE_RULE, ack.m_message));
-            break;
-        }
-
-        case COLLECT_STATS:
-            status = interface_.collect_statistics (user_address, operation);
-            break;
 
         case COLLECT_DETAILED_STATS: {
             std::vector<std::string> tokens {};
