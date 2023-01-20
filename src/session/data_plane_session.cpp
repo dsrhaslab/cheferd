@@ -177,13 +177,13 @@ DataPlaneSession::SendRule (int socket, const std::string& rule, ControlOperatio
                         // enqueue response of data plane stage from collect_tensorflow_statistics
                         // request
                         EnqueueResponseInCompletionQueue (
-                            std::make_unique<StageResponseStatsGlobal> (COLLECT_GLOBAL_STATS,
+                            std::make_unique<StageResponseStat> (COLLECT_GLOBAL_STATS,
                                 stats_global.m_total_rate));
                     } else {
                         // enqueue response of data plane stage from collect_tensorflow_statistics
                         // request
                         EnqueueResponseInCompletionQueue (
-                            std::make_unique<StageResponseStatsGlobal> (COLLECT_GLOBAL_STATS, -1));
+                            std::make_unique<StageResponseStat> (COLLECT_GLOBAL_STATS, -1));
                     }
                     break;
                 }

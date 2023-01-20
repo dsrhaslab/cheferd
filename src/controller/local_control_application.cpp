@@ -649,7 +649,7 @@ Status LocalControlApplication::CollectGlobalStatistics (ServerContext* context,
         // verify if pointer is valid
         if (stats_ptr != nullptr) {
             // convert StageResponse unique-ptr to StageResponseStatsKVS
-            auto* response_ptr = dynamic_cast<StageResponseStatsGlobal*> (stats_ptr.get ());
+            auto* response_ptr = dynamic_cast<StageResponseStat*> (stats_ptr.get ());
 
             if (response_ptr->get_total_rate () == -1) {
                 std::cout << ">>> response_ptr->get_total_rate() == -1" << std::endl;
@@ -718,7 +718,7 @@ Status LocalControlApplication::CollectGlobalStatisticsAggregated (ServerContext
             // verify if pointer is valid
             if (stats_ptr != nullptr) {
                 // convert StageResponse unique-ptr to StageResponseStatsKVS
-                auto* response_ptr = dynamic_cast<StageResponseStatsGlobal*> (stats_ptr.get ());
+                auto* response_ptr = dynamic_cast<StageResponseStat*> (stats_ptr.get ());
 
                 if (response_ptr->get_total_rate () == -1) {
                     std::cout << ">>> response_ptr->get_total_rate() == -1" << std::endl;

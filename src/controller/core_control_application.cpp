@@ -462,7 +462,7 @@ void CoreControlApplication::collect_statistics_result (
 
         for (auto const& stats_value : (*response_ptr->m_stats_ptr.get ())) {
             auto* global_stat_ptr
-                = dynamic_cast<StageResponseStatsGlobal*> (stats_value.second.get ());
+                = dynamic_cast<StageResponseStat*> (stats_value.second.get ());
 
             double current_rate = global_stat_ptr->get_total_rate ();
 
@@ -874,7 +874,7 @@ void CoreControlApplication::compute_and_enforce_dynamic_leftover_rules (
                             total_app_rate += current_rate;
                             Logging::log_debug ("NOT EXIST");
                         } else {
-                            auto* entities_stat_ptr = dynamic_cast<StageResponseStatsGlobal*> (
+                            auto* entities_stat_ptr = dynamic_cast<StageResponseStat*> (
                                 stage_exists->second.get ());
 
                             double current_rate = entities_stat_ptr->get_total_rate ();

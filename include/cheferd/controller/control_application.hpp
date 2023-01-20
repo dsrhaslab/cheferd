@@ -7,7 +7,7 @@
 
 #include "cheferd/networking/stage_response/stage_response_ack.hpp"
 #include "cheferd/networking/stage_response/stage_response_handshake.hpp"
-#include "cheferd/networking/stage_response/stage_response_stats_global.hpp"
+#include "cheferd/networking/stage_response/stage_response_stat.hpp"
 
 #include <array>
 #include <atomic>

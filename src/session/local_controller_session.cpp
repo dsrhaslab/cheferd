@@ -1,9 +1,8 @@
 /**
- *   Written by Ricardo Macedo.
  *   Copyright (c) 2020 INESC TEC.
  **/
 
-#include "cheferd/networking/stage_response/stage_response_stats_global.hpp"
+#include "cheferd/networking/stage_response/stage_response_stat.hpp"
 
 #include <cheferd/session/local_controller_session.hpp>
 
@@ -86,7 +85,6 @@ PStatus LocalControllerSession::SendRule (const std::string& user_address,
         }
 
         case STAGE_READY: {
-            std::cout << "STAGE_READY ...\n";
             operation->m_size = sizeof (struct StageReadyRaw);
             // create temporary ACK structure
             ACK ack {};
@@ -95,6 +93,7 @@ PStatus LocalControllerSession::SendRule (const std::string& user_address,
             // enqueue response of data plane stage from mar_stage_ready request
             EnqueueResponseInCompletionQueue (
                 std::make_unique<StageResponseACK> (STAGE_READY, ack.m_message));
+
             break;
         }
 
@@ -167,14 +166,14 @@ PStatus LocalControllerSession::SendRule (const std::string& user_address,
                         // enqueue response of data plane stage from collect_tensorflow_statistics
                         // request
                         EnqueueResponseInCompletionQueue (
-                            std::make_unique<StageResponseStats> (COLLECT_GLOBAL_STATS,
+                            std::make_unique<StageResponseStats> (COLLECT_GLOBAL_STATS_AGGREGATED,
                                 stats_tf_objects));
 
                     } else {
                         // enqueue response of data plane stage from collect_tensorflow_statistics
                         // request
                         EnqueueResponseInCompletionQueue (
-                            std::make_unique<StageResponseStats> (COLLECT_GLOBAL_STATS,
+                            std::make_unique<StageResponseStats> (COLLECT_GLOBAL_STATS_AGGREGATED,
                                 stats_tf_objects));
                     }
                     break;
@@ -205,13 +204,9 @@ void LocalControllerSession::RemoveSession ()
 // EnqueueRuleInSubmissionQueue call. Enqueue rule in the submission_queue.
 void LocalControllerSession::EnqueueRuleInSubmissionQueue (const std::string& rule)
 {
-    // Logging::log_debug("DataPlaneSession :: Enqueueue to dequeue");
-
     std::unique_lock<std::mutex> lock_t { submission_queue_lock_ };
     submission_queue_.emplace (rule);
     submission_queue_condition_.notify_one ();
-
-    // Logging::log_debug("DataPlaneSession :: Enqueueue to dequeue2");
 }
 
 // Missing: add wait_for and cv_status to exit the condition when we need to terminate the
@@ -221,19 +216,10 @@ PStatus LocalControllerSession::DequeueRuleFromSubmissionQueue (std::string& rul
     std::unique_lock<std::mutex> lock_t { submission_queue_lock_ };
     PStatus status_t = PStatus::Error ();
 
-    // Logging::log_debug("DataPlaneSession :: 1Dequeueue to dequeue");
-
     while (working_session_.load () && submission_queue_.empty ()) {
-        // Logging::log_debug("DataPlaneSession :: 2Dequeueue to dequeue");
-
-        submission_queue_condition_.wait (lock_t);
-        // Logging::log_debug("DataPlaneSession :: 3Dequeueue to dequeue");
-    }
-
-    // Logging::log_debug("DataPlaneSession :: 4Dequeueue to dequeue");
+        submission_queue_condition_.wait (lock_t);}
 
     if (working_session_.load ()) {
-        // Logging::log_debug("DataPlaneSession :: 5Dequeueue to dequeue");
         rule = submission_queue_.front ();
         submission_queue_.pop ();
         status_t = PStatus::OK ();

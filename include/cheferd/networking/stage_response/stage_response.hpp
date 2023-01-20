@@ -1,5 +1,4 @@
 /**
- *   Written by Ricardo Macedo.
  *   Copyright (c) 2020 INESC TEC.
  **/
 
@@ -10,8 +9,15 @@
 
 namespace cheferd {
 
+/**
+ * StageResponse class.
+ * Base class for all responses from both data plane stages and local controllers.
+ */
 class StageResponse {
 public:
+    /**
+     * Type of response. (e.g., STAGE_HANDSHAKE, CREATE_ENF_RULE, COLLECT_GLOBAL_STATS, ...).
+     */
     int response_type_;
 
     /**
@@ -21,7 +27,7 @@ public:
 
     /**
      * StageResponse parameterized constructor.
-     * @param response_type
+     * @param response_type Type of response
      */
     StageResponse (const int& response_type);
 

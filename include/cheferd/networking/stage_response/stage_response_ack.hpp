@@ -1,5 +1,4 @@
 /**
- *   Written by Ricardo Macedo.
  *   Copyright (c) 2020 INESC TEC.
  **/
 

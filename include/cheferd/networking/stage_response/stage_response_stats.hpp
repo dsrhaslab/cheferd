@@ -1,15 +1,14 @@
 /**
- *   Written by Ricardo Macedo.
  *   Copyright (c) 2020 INESC TEC.
  **/
 
 #ifndef CHEFERD_STAGE_RESPONSE_STATS_HPP
 #define CHEFERD_STAGE_RESPONSE_STATS_HPP
 
-#include "stage_response_stat.hpp"
-
 #include <memory>
 #include <unordered_map>
+
+#include "stage_response.hpp"
 
 namespace cheferd {
 
@@ -21,7 +20,7 @@ class StageResponseStats : public StageResponse {
 
 private:
 public:
-    /*TODO: Put this private*/
+    /*TODO: Make this private*/
     std::unique_ptr<std::unordered_map<std::string, std::unique_ptr<StageResponse>>> m_stats_ptr;
 
     /**

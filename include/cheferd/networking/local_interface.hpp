@@ -7,7 +7,7 @@
 #define CHEFERD_LOCAL_INTERFACE_HPP
 
 #include "cheferd/networking/stage_response/stage_response_stats.hpp"
-#include "cheferd/networking/stage_response/stage_response_stats_global.hpp"
+#include "cheferd/networking/stage_response/stage_response_stat.hpp"
 
 #include <cheferd/networking/southbound_interface.hpp>
 #include <cheferd/utils/logging.hpp>

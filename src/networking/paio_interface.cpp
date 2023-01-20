@@ -349,8 +349,8 @@ PStatus PAIOInterface::ExecuteHousekeepingRules (int socket,
 }
 
 // Missing actual implementation
-// CreateDifferentiationRule call. (...)
-PStatus PAIOInterface::CreateDifferentiationRule (int socket,
+// create_differentiation_rule call. (...)
+PStatus PAIOInterface::create_differentiation_rule (int socket,
     ControlOperation* operation,
     const std::string& rule,
     ACK& response)

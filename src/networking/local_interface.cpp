@@ -279,7 +279,7 @@ PStatus LocalInterface::collect_global_statistics (const std::string& user_addre
         for (auto stats : reply.gl_stats ()) {
 
             stats_tf_objects->emplace (stats.first,
-                std::make_unique<StageResponseStatsGlobal> (COLLECT_GLOBAL_STATS,
+                std::make_unique<StageResponseStat> (COLLECT_GLOBAL_STATS,
                     stats.second.m_metadata_total_rate ()));
         }
 
@@ -311,7 +311,7 @@ PStatus LocalInterface::collect_global_statistics_aggregated (const std::string&
         for (auto stats : reply.gl_stats ()) {
 
             stats_tf_objects->emplace (stats.first,
-                std::make_unique<StageResponseStatsGlobal> (COLLECT_GLOBAL_STATS,
+                std::make_unique<StageResponseStat> (COLLECT_GLOBAL_STATS,
                     stats.second.m_metadata_total_rate ()));
         }
 

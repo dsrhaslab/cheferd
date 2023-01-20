@@ -150,9 +150,8 @@ target_sources(
         ${PROJECT_SOURCE_DIR}/include/cheferd/networking/stage_response/stage_response.hpp
         ${PROJECT_SOURCE_DIR}/include/cheferd/networking/stage_response/stage_response_ack.hpp
         ${PROJECT_SOURCE_DIR}/include/cheferd/networking/stage_response/stage_response_handshake.hpp
-        ${PROJECT_SOURCE_DIR}/include/cheferd/networking/stage_response/stage_response_stats_global.hpp
-        ${PROJECT_SOURCE_DIR}/include/cheferd/networking/stage_response/stage_response_stats.hpp
         ${PROJECT_SOURCE_DIR}/include/cheferd/networking/stage_response/stage_response_stat.hpp
+        ${PROJECT_SOURCE_DIR}/include/cheferd/networking/stage_response/stage_response_stats.hpp
         ${PROJECT_SOURCE_DIR}/include/cheferd/session/session.hpp
         ${PROJECT_SOURCE_DIR}/include/cheferd/session/data_plane_session.hpp
         ${PROJECT_SOURCE_DIR}/include/cheferd/session/handshake_session.hpp
@@ -182,9 +181,8 @@ target_sources(
         src/networking/stage_response/stage_response.cpp
         src/networking/stage_response/stage_response_ack.cpp
         src/networking/stage_response/stage_response_handshake.cpp
-        src/networking/stage_response/stage_response_stats_global.cpp
-        src/networking/stage_response/stage_response_stats.cpp
         src/networking/stage_response/stage_response_stat.cpp
+        src/networking/stage_response/stage_response_stats.cpp
         src/session/session.cpp
         src/session/handshake_session.cpp
         src/session/data_plane_session.cpp

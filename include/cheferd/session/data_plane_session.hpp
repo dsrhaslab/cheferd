@@ -10,7 +10,7 @@
 #include "cheferd/networking/stage_response/stage_response_ack.hpp"
 #include "cheferd/networking/stage_response/stage_response_handshake.hpp"
 #include "cheferd/networking/stage_response/stage_response_stats.hpp"
-#include "cheferd/networking/stage_response/stage_response_stats_global.hpp"
+#include "cheferd/networking/stage_response/stage_response_stat.hpp"
 
 #include <cheferd/networking/paio_interface.hpp>
 #include <cheferd/utils/logging.hpp>

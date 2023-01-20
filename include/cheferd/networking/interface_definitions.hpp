@@ -54,24 +54,6 @@ namespace cheferd {
 #define ENF_PREEMPT    5 // set DRL preempt operation
 #define ENF_NONE       0
 
-/**
- * Statistic collection metric. Define the type of statistic to collect, based
- * on our use cases (1 == RocksDB and 2 == TensorFlow).
- * TODO: remove; it should be more generic.
- */
-#define ROCKSDB_STATISTIC_COLLECTION    1
-#define TENSORFLOW_STATISTIC_COLLECTION 2
-
-/**
- * Data plane instance.
- */
-#define ROCKSDB_INSTANCE       0
-#define TENSOR_FLOW_INSTANCE_1 1
-#define TENSOR_FLOW_INSTANCE_2 2
-#define TENSOR_FLOW_INSTANCE_3 3
-#define TENSOR_FLOW_INSTANCE_4 4
-
-typedef int dp_instance;
 
 /**
  * ControlOperation structure.
@@ -220,9 +202,6 @@ struct HousekeepingCreateChannelRaw {
     uint32_t m_workflow_id { 0 };
     uint32_t m_operation_type { static_cast<uint32_t> (PAIO_GENERAL::no_op) };
     uint32_t m_operation_context { static_cast<uint32_t> (PAIO_GENERAL::no_op) };
-    // TODO: remove differentiation/operation_context ...
-    // int differentiation_context; // Channel's DifferentiationContext (FLOW, IO_OP, CUSTOM).
-    // int operation_context; // Channel's OperationContext (BG_NO_OP, BG_FLUSH, ...).
 };
 
 /**
@@ -254,9 +233,6 @@ struct HousekeepingCreateObjectRaw {
     long m_enforcement_object_type { 0 };
     long m_property_first { 0 };
     long m_property_second { 0 };
-    // TODO: remove differentiation/operation_context ...
-    // int differentiation_context; // Channel's DifferentiationContext (FLOW, IO_OP, CUSTOM).
-    // int operation_context; // Channel's OperationContext (BG_NO_OP, BG_FLUSH, ...).
 };
 
 /**
@@ -373,7 +349,6 @@ struct EnforcementRuleWithTimeRaw {
     long m_rule_id { 0 };
     long m_channel_id { -1 };
     long m_enforcement_object_id { -1 };
-    // int m_enforcement_object_type { 0 }; // fixme: probably not needed; remove
     int m_enforcement_operation { 0 };
     long m_property_first { -1 };
     long m_property_second { -1 };
@@ -383,7 +358,6 @@ struct EnforcementRuleWithTimeRaw {
 /**
  * StageReadyRaw: Raw structure that defines if the data plane is ready to receive I/O requests
  * from the targeted I/O layer.
- * TODO: complete me ...
  */
 struct StageReadyRaw {
     bool m_mark_stage { false };

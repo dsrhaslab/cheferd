@@ -30,7 +30,7 @@ public:
         ACK& response)
         = 0;
 
-    virtual PStatus CreateDifferentiationRule (int socket,
+    virtual PStatus create_differentiation_rule (int socket,
         ControlOperation* operation,
         const std::string& rule,
         ACK& response)
