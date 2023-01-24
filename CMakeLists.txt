@@ -199,19 +199,25 @@ target_sources(
 
 
 # ---------------------------------------------------------------------------- #
-# boost
+# > gflags --- commandline flag processing library
 
-set(BOOST_INCLUDE_LIBRARIES program_options)
-set(BOOST_ENABLE_CMAKE ON)
+if(${CMAKE_VERSION} VERSION_LESS "3.24.0")
+    FetchContent_Declare(gflags
+            URL             https://github.com/gflags/gflags/archive/refs/tags/v2.2.2.tar.gz
+            UPDATE_COMMAND  ""
+            INSTALL_COMMAND ""
+            )
+else ()
+    FetchContent_Declare(gflags
+            URL             https://github.com/gflags/gflags/archive/refs/tags/v2.2.2.tar.gz
+            UPDATE_COMMAND  ""
+            INSTALL_COMMAND ""
+            DOWNLOAD_EXTRACT_TIMESTAMP NEW
+            )
+endif ()
 
-FetchContent_Declare(
-        Boost
-        GIT_REPOSITORY https://github.com/boostorg/boost.git
-        GIT_TAG boost-1.80.0
-)
-
-FetchContent_MakeAvailable(Boost)
-target_link_libraries(cheferd Boost::program_options)
+FetchContent_MakeAvailable(gflags)
+target_link_libraries(cheferd gflags)
 
 # ---------------------------------------------------------------------------- #
 # spdlog
