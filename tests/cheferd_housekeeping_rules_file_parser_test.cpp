@@ -2,7 +2,7 @@
  *   Copyright (c) 2022 INESC TEC.
  **/
 
-#include <cheferd/utils/command_line_parser.hpp>
+#include <cheferd/controller/controller.hpp>
 #include <cheferd/utils/logging.hpp>
 
 namespace cheferd {

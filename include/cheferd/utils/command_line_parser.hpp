@@ -4,9 +4,8 @@
 #ifndef CHEFERD_COMMAND_LINE_PARSER_HPP
 #define CHEFERD_COMMAND_LINE_PARSER_HPP
 
-#include <boost/program_options.hpp>
+#include <gflags/gflags.h>
 #include <cheferd/controller/controller.hpp>
-namespace po = boost::program_options;
 
 namespace cheferd {
 
