@@ -74,6 +74,9 @@ public:
      * Operator: (...)
      */
     virtual void operator() () = 0;
+
+    virtual void stop_feedback_loop () = 0;
+
 };
 
 } // namespace cheferd

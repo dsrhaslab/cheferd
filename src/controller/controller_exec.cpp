@@ -53,7 +53,7 @@ int main (int argc, char** argv)
 
             // spawn ControlAlgorithm to attach LocalControllerSessions and execute its
             // control algorithm ...
-            controller.SpawnControlAlgorithm ();
+            controller.SpawnControlApplication ();
 
             controller.SpawnSystemAdmin ();
 
@@ -70,7 +70,7 @@ int main (int argc, char** argv)
 
             // spawn ControlAlgorithm to attach LocalControllerSessions and execute its
             // control algorithm ...
-            controller.SpawnControlAlgorithm ();
+            controller.SpawnControlApplication ();
 
             // start connection manager to receive Data Plane Stage connections
             controller.SpawnConnectionManager ();

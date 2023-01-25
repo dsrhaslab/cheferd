@@ -167,7 +167,7 @@ public:
 
     void enqueue_rule_in_queue (const std::string& rule);
 
-    void stop_feedback_loop ();
+    void stop_feedback_loop () override;
 
     std::string update_job_demands ();
 

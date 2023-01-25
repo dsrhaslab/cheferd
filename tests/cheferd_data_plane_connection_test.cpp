@@ -14,7 +14,7 @@ void StopController (Controller controller)
 
     sleep (15);
     Logging::log_info ("cheferd controller terminating...");
-    controller.StopConnectionManager ();
+    controller.StopController ();
     Logging::log_info ("cheferd controller terminated...");
 }
 
@@ -62,7 +62,7 @@ void DeployController (ControllerType controller_type,
 
             // spawn ControlAlgorithm to attach LocalControllerSessions and execute its
             // control algorithm ...
-            controller.SpawnControlAlgorithm ();
+            controller.SpawnControlApplication ();
 
             controller.SpawnSystemAdmin ();
 
@@ -83,7 +83,7 @@ void DeployController (ControllerType controller_type,
 
             // spawn ControlAlgorithm to attach LocalControllerSessions and execute its
             // control algorithm ...
-            controller.SpawnControlAlgorithm ();
+            controller.SpawnControlApplication ();
 
             // Stop controller after 15s
             std::thread xx (StopController, controller);

@@ -80,8 +80,8 @@ void Controller::RegisterHousekeepingRules (const std::string& path)
     }
 }
 
-//    SpawnControlAlgorithm call.
-void Controller::SpawnControlAlgorithm ()
+//    SpawnControlApplication call.
+void Controller::SpawnControlApplication ()
 {
     Logging::log_info ("Spawning Control Algorithm -- ");
     std::thread control_application_thread_t = std::thread (std::ref (*m_control_application));
@@ -103,9 +103,10 @@ void Controller::SpawnConnectionManager ()
     m_connection_manager->Start (m_control_application);
 }
 
-void Controller::StopConnectionManager ()
+void Controller::StopController ()
 {
     m_connection_manager->Stop ();
+    m_control_application->stop_feedback_loop();
 }
 
 } // namespace cheferd
