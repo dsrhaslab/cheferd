@@ -18,6 +18,14 @@ using namespace std::chrono;
 
 namespace cheferd {
 
+//  Detailed information related to a data plane stage.
+struct StageInfo {
+    std::string m_stage_name;
+    std::string m_stage_env;
+    std::string m_stage_user;
+    std::string m_local_address;
+};
+
 class ControlApplication {
 
 protected:

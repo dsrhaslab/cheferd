@@ -31,7 +31,7 @@ using controllers_grpc_interface::ConnectReply;
 using controllers_grpc_interface::ConnectRequest;
 using controllers_grpc_interface::EnforcementOpRules;
 using controllers_grpc_interface::EnforcementRules;
-using controllers_grpc_interface::StageInfo;
+using controllers_grpc_interface::StageInfoConnect;
 using controllers_grpc_interface::StageReadyRaw;
 using controllers_grpc_interface::StatsGlobalMap;
 using grpc::Server;

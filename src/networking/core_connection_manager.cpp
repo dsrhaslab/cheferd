@@ -56,16 +56,8 @@ Status CoreConnectionManager::ConnectLocalToGlobal (ServerContext* context,
         // register data plane session
 
         if (m_control_application_ptr != nullptr) {
-            LocalControllerSession* ptr_t
-                = m_control_application_ptr->register_local_controller_session (
+            m_control_application_ptr->register_local_controller_session (
                     request->user_address ());
-
-            // spawn thread for the new data plane session
-            // asio::post (thread_pool_, [&] () { ptr_t->StartSession (request->user_address()); });
-            std::thread session_thread_t = std::thread (&LocalControllerSession::StartSession,
-                ptr_t,
-                request->user_address ());
-            session_thread_t.detach ();
 
             // update index and connection delay
             index_t++;
@@ -84,7 +76,7 @@ Status CoreConnectionManager::ConnectLocalToGlobal (ServerContext* context,
 
 // Connect data plane stage to core controller
 Status CoreConnectionManager::ConnectStageToGlobal (ServerContext* context,
-    const StageInfo* request,
+    const StageInfoConnect* request,
     ConnectReply* reply)
 {
     std::string prefix ("Hello stage with index: ");

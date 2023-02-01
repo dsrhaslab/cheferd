@@ -130,12 +130,9 @@ PStatus PAIOInterface::mark_stage_ready (int socket,
     operation->m_operation_type = STAGE_READY;
     operation->m_size = sizeof (struct StageReadyRaw);
 
-    Logging::log_error ("111mark_stage_ready: Error while writing control operation ");
 
     // write ControlSend structure through socket
     ssize_t return_value = ::write (socket, operation, sizeof (struct ControlOperation));
-    Logging::log_error ("222mark_stage_ready: Error while writing control operation ("
-        + std::to_string (return_value) + ").");
 
     // verify total written bytes
     if (return_value != sizeof (struct ControlOperation)) {

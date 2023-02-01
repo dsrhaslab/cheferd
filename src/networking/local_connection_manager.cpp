@@ -67,7 +67,7 @@ void LocalConnectionManager::Start (ControlApplication* app_ptr)
         if (socket_t != -1) {
             std::cout << "Socket: " << socket_t << "\n";
             // register data plane session
-            ctr_ptr->register_stage_session (index_t, socket_t);
+            ctr_ptr->register_stage_session (socket_t);
 
             // spawn thread for the new data plane session
             // asio::post (thread_pool_, [&] () { ptr_t->StartSession (socket_t); });

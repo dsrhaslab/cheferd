@@ -8,11 +8,11 @@
 namespace cheferd {
 
 // HandshakeSession default constructor.
-HandshakeSession::HandshakeSession () : session_id_ { 0 }, interface_ {}
+HandshakeSession::HandshakeSession () : socket_id_ { 0 }, interface_ {}
 { }
 
 // HandshakeSession parameterized constructor.
-HandshakeSession::HandshakeSession (long id) : session_id_ { id }, interface_ {}
+HandshakeSession::HandshakeSession (long id) : socket_id_ { id }, interface_ {}
 { }
 
 // HandshakeSession default destructor.
@@ -20,7 +20,7 @@ HandshakeSession::~HandshakeSession () = default;
 
 // StartSession() call. Start session between the controller and the data plane
 // stage.
-void HandshakeSession::StartSession (int socket)
+void HandshakeSession::StartSession ()
 {
 
     Logging::log_debug ("HandshakeSession :: " + std::to_string (getSubmissionQueueSize ()));
@@ -34,14 +34,14 @@ void HandshakeSession::StartSession (int socket)
     status = DequeueRuleFromSubmissionQueue (rule);
 
     if (status.isOk ()) {
-        status = SendRule (socket, rule, &operation);
+        status = SendRule (socket_id_, rule, &operation);
     }
 
     if (working_session_.load () && status.isOk ()) {
         /* Send info about address and port to connect to */
         status = DequeueRuleFromSubmissionQueue (rule);
         if (status.isOk ()) {
-            status = SendRule (socket, rule, &operation);
+            status = SendRule (socket_id_, rule, &operation);
         }
     }
 }
@@ -192,7 +192,7 @@ std::unique_ptr<StageResponse> HandshakeSession::GetResult ()
 
 long HandshakeSession::SessionIdentifier () const
 {
-    return session_id_;
+    return socket_id_;
 }
 
 } // namespace cheferd

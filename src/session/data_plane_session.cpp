@@ -92,7 +92,7 @@ DataPlaneSession::SendRule (int socket, const std::string& rule, ControlOperatio
     // parse rule
     if (!rule.empty ()) {
         std::string token = rule.substr (0, rule.find ('|'));
-        // std::cout << "Token: " << token << "\n";
+        std::cout << "Token: " << token << "\n";
         operation->m_operation_type = std::stoi (token);
     }
 
@@ -122,6 +122,18 @@ DataPlaneSession::SendRule (int socket, const std::string& rule, ControlOperatio
             // enqueue response of data plane stage from mar_stage_ready request
             EnqueueResponseInCompletionQueue (
                 std::make_unique<StageResponseACK> (STAGE_READY, ack.m_message));
+            break;
+        }
+
+        case CREATE_HSK_RULE: {
+            std::cout << "CREATE_HSK_RULE ... \n";
+            // create temporary ACK structure
+            ACK ack {};
+            // invoke SouthboundInterface's CreateHousekeepingRule
+            status = interface_.create_housekeeping_rule (socket, operation, rule, ack);
+            // enqueue response of data plane stage from CreateHousekeepingRule request
+            EnqueueResponseInCompletionQueue (
+                std::make_unique<StageResponseACK> (CREATE_HSK_RULE, ack.m_message));
             break;
         }
 

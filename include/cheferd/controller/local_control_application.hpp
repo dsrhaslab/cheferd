@@ -23,7 +23,7 @@
 using controllers_grpc_interface::ACK;
 using controllers_grpc_interface::ConnectReply;
 using controllers_grpc_interface::ConnectRequest;
-using controllers_grpc_interface::StageInfo;
+using controllers_grpc_interface::StageInfoConnect;
 using controllers_grpc_interface::StageReadyRaw;
 using controllers_grpc_interface::StatsGlobalMap;
 using grpc::Server;
@@ -55,7 +55,10 @@ private:
     std::unordered_map<std::string, std::unique_ptr<DataPlaneSession>> data_sessions_;
     std::unordered_map<std::string, std::unique_ptr<DataPlaneSession>> preparing_data_sessions_;
 
-    std::unordered_map<int, std::unique_ptr<HandshakeSession>> pending_data_sessions_;
+    // Related to the registration of new local controller sessions.
+    std::mutex pending_data_plane_sessions_lock_;
+    std::queue<std::unique_ptr<HandshakeSession>> pending_data_sessions_;
+
 
     std::unordered_map<std::string, std::vector<std::pair<int, int>>> operation_to_channel_object;
 
@@ -81,7 +84,7 @@ private:
      * @param index
      * @return
      */
-    PStatus stage_handshake (int index);
+    void handle_data_plane_sessions ();
 
     /**
      * Sleep:
@@ -92,8 +95,8 @@ private:
      * CallStageHandshake:
      * @return
      */
-    std::tuple<const std::string, const std::string, const std::string> call_stage_handshake (
-        const int& index);
+    std::unique_ptr<StageInfo> call_stage_handshake (
+        HandshakeSession* handshake_session);
 
     /*
      * SubmitHousekeepingRules:
@@ -150,7 +153,7 @@ public:
     void operator() () override;
 
     // TODO: FIX this in control application parent class
-    HandshakeSession* register_stage_session (int index, int i);
+    void register_stage_session (int socket_t);
 
     void stop_feedback_loop () override;
 

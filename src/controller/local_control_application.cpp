@@ -123,7 +123,7 @@ Status LocalControlApplication::ConnectStageToGlobal (const std::string& stage_n
     const std::string& stage_user)
 {
     // Data we are sending to the server.
-    StageInfo request;
+    StageInfoConnect request;
     request.set_local_address (local_address);
     request.set_stage_name (stage_name);
     request.set_stage_env (stage_env);
@@ -156,61 +156,88 @@ void LocalControlApplication::initialize ()
 { }
 
 //    RegisterDataPlaneSession call. (...)
-HandshakeSession* LocalControlApplication::register_stage_session (int index, int socket_t)
+void LocalControlApplication::register_stage_session (int socket_t)
 {
-    Logging::log_debug ("RegisterDataPlaneSession -- DataPlaneStage-" + std::to_string (index));
+    Logging::log_debug ("RegisterDataPlaneSession -- DataPlaneStage-" + std::to_string (socket_t));
 
-    pending_data_sessions_.emplace (index, std::make_unique<HandshakeSession> ());
+    pending_data_plane_sessions_lock_.lock();
+    pending_data_sessions_.emplace (std::make_unique<HandshakeSession> (socket_t));
+
+    pending_data_plane_sessions_lock_.unlock();
 
     this->m_pending_data_plane_sessions.fetch_add (1);
 
-    std::thread session_thread_t = std::thread (&HandshakeSession::StartSession,
-        (this->pending_data_sessions_[index]).get (),
-        socket_t);
-    session_thread_t.detach ();
-
-    return pending_data_sessions_[index].get ();
 }
 
 // stage_handshake call. (...)
-PStatus LocalControlApplication::stage_handshake (int index)
+void LocalControlApplication::handle_data_plane_sessions ()
 {
-    Logging::log_debug (
-        "LocalControlApplication: Data Plane Session Handshake (" + std::to_string (index) + ")");
-    PStatus status = PStatus::Error ();
+    if (!pending_data_sessions_.empty()){
+        Logging::log_debug (
+            "LocalControlApplication: Data Plane Session Handshake");
 
-    // invoke CallStageHandshake routine to acknowledge the stage's identifier
-    //<stage_name, stage_env, stage_user>
-    std::tuple<const std::string, const std::string, const std::string> stage_identifier
-        = this->call_stage_handshake (index);
+        PStatus status = PStatus::Error ();
 
-    pending_data_sessions_.at (index)->RemoveSession ();
-    pending_data_sessions_.erase (index);
+        pending_data_plane_sessions_lock_.lock ();
+        auto handshake_session = std::move(pending_data_sessions_.front ());
+        pending_data_sessions_.pop ();
+        pending_data_plane_sessions_lock_.unlock ();
 
-    status = PStatus::OK ();
-    if (!std::get<0> (stage_identifier).empty ()) {
-        // submit housekeeping rules to the data plane stage
-        std::string stage_env
-            = std::get<0> (stage_identifier) + "+" + std::get<1> (stage_identifier);
-        int installed_rules = this->submit_housekeeping_rules (stage_env);
-        Logging::log_debug ("installed rules ... (" + std::to_string (installed_rules) + ") in ("
-            + stage_env + ")");
+        m_pending_data_plane_sessions.fetch_sub (1);
 
-        if (installed_rules > 3) {
+        /*Start Session*/
+        std::thread session_thread_t = std::thread (&HandshakeSession::StartSession,
+            handshake_session.get ());
+        session_thread_t.detach ();
 
-            Logging::log_debug ("LocalControlApplication: Connecting Stage to Global ("
-                + std::to_string (index) + ")");
-            ConnectStageToGlobal (std::get<0> (stage_identifier),
-                std::get<1> (stage_identifier),
-                std::get<2> (stage_identifier));
-        } else {
+        // invoke CallStageHandshake routine to acknowledge the stage's identifier
+        //<stage_name, stage_env, stage_user>
+        std::unique_ptr<StageInfo> stage_identifier
+            = this->call_stage_handshake (handshake_session.get());
 
-            preparing_data_sessions_.at (stage_env)->RemoveSession ();
-            preparing_data_sessions_.erase (stage_env);
+        handshake_session->RemoveSession();
+
+        if (!stage_identifier->m_stage_name.empty ()) {
+            // submit housekeeping rules to the data plane stage
+            std::string stage_env
+                = stage_identifier->m_stage_name + "+" + stage_identifier->m_stage_env;
+
+            int installed_rules = this->submit_housekeeping_rules (stage_env);
+
+            Logging::log_debug ("installed rules ... (" + std::to_string (installed_rules) + ") in ("
+                + stage_env + ")");
+
+            if (installed_rules == housekeeping_rules_ptr_->size()) {
+
+                Logging::log_debug ("LocalControlApplication: Connecting Stage to Global ("
+                    + stage_identifier->m_stage_name + ")");
+
+                Status status = ConnectStageToGlobal (stage_identifier->m_stage_name,
+                    stage_identifier->m_stage_env,
+                    stage_identifier->m_stage_user);
+
+                if (status.ok()) {
+                    // index++;
+                    // this->m_pending_data_plane_sessions.fetch_sub (1);
+
+                    Logging::log_debug ("DataPlaneSessionHandshake with DataPlaneStage-"
+                        + stage_identifier->m_stage_name + " successfully established.");
+                } else {
+                    Logging::log_error ("DataPlaneSessionHandshake with DataPlaneStage-"
+                        + stage_identifier->m_stage_name + " not established.");
+
+                    std::this_thread::sleep_for (milliseconds (100));
+                }
+
+            } else {
+                Logging::log_error ("DataPlaneSessionHandshake with DataPlaneStage-"
+                    + stage_identifier->m_stage_name + " not established.");
+
+                preparing_data_sessions_.at (stage_env)->RemoveSession ();
+                preparing_data_sessions_.erase (stage_env);
+            }
         }
     }
-
-    return status;
 }
 
 // operator call. (...)
@@ -223,8 +250,9 @@ void LocalControlApplication::stop_feedback_loop ()
 {
     server->Shutdown ();
     working_application_ = false;
-    for (auto const& pending_session : pending_data_sessions_) {
-        pending_session.second->RemoveSession ();
+    while(!pending_data_sessions_.empty()){
+        pending_data_sessions_.front()->RemoveSession();
+        pending_data_sessions_.pop();
     }
     for (auto const& data_session : data_sessions_) {
         data_session.second->RemoveSession ();
@@ -254,24 +282,10 @@ void LocalControlApplication::execute_feedback_loop ()
         // if exists pending sessions, perform the Session Handshake
         while (this->m_pending_data_plane_sessions.load () > 0) {
             // execute session handshake
-            status = this->stage_handshake (index);
+            handle_data_plane_sessions ();
 
             index++;
-            this->m_pending_data_plane_sessions.fetch_sub (1);
 
-            if (status.isOk ()) {
-                // index++;
-                // this->m_pending_data_plane_sessions.fetch_sub (1);
-                this->m_active_data_plane_sessions.fetch_add (1);
-
-                Logging::log_debug ("DataPlaneSessionHandshake with DataPlaneStage-"
-                    + std::to_string (index) + " successfully established.");
-            } else {
-                Logging::log_error ("DataPlaneSessionHandshake with DataPlaneStage-"
-                    + std::to_string (index + 1) + " not established.");
-
-                std::this_thread::sleep_for (milliseconds (100));
-            }
             std::this_thread::sleep_for (milliseconds (100));
         }
 
@@ -286,20 +300,20 @@ void LocalControlApplication::execute_feedback_loop ()
 }
 
 // call_stage_handshake call. (...)
-std::tuple<const std::string, const std::string, const std::string>
-LocalControlApplication::call_stage_handshake (const int& index)
+
+std::unique_ptr<StageInfo> LocalControlApplication::call_stage_handshake (HandshakeSession* handshake_session)
 {
     // create STAGE_HANDSHAKE request
     std::string rule = std::to_string (STAGE_HANDSHAKE) + "|";
     // put request on DataPlaneSession::submission_queue
 
-    pending_data_sessions_[index]->SubmitRule (rule);
+    handshake_session->SubmitRule (rule);
 
     std::cout << "Submitter Rule"
               << "\n";
 
     // wait for request to be on DataPlaneSession::completion_queue
-    std::unique_ptr<StageResponse> response_obj = pending_data_sessions_[index]->GetResult ();
+    std::unique_ptr<StageResponse> response_obj = handshake_session->GetResult ();
     // convert StageResponse to Handshake object
     std::cout << "Response Rule"
               << "\n";
@@ -311,6 +325,8 @@ LocalControlApplication::call_stage_handshake (const int& index)
 
     Logging::log_info ("LocalControlApplication:" + stage_name_env);
     // register instance index to stage_name_env
+    std::unique_ptr<StageInfo> all_stage_info = std::make_unique<StageInfo>();
+
     if (handshake_ptr != nullptr) {
 
         Logging::log_info ("LocalControlApplication: establishing UNIX connection with "
@@ -335,24 +351,29 @@ LocalControlApplication::call_stage_handshake (const int& index)
         /*Send info about the address and port to connect to*/
         rule = std::to_string (STAGE_HANDSHAKE_INFO) + "|" + socket_info + "|"
             + std::to_string (port) + "|";
-        pending_data_sessions_[index]->SubmitRule (rule);
+        handshake_session->SubmitRule (rule);
 
-        std::unique_ptr<StageResponse> response_obj = pending_data_sessions_[index]->GetResult ();
+        std::unique_ptr<StageResponse> response_obj = handshake_session->GetResult ();
         // convert StageResponse to Handshake object
         // auto* handshake_ptr = dynamic_cast<StageResponseACK*> (response_obj.get ());
 
         /*TODO: Colocar a verificar se está tudo bem*/
+
+        all_stage_info->m_stage_name = handshake_ptr->get_stage_name();
+        all_stage_info->m_stage_env = handshake_ptr->get_stage_env();
+        all_stage_info->m_stage_user = handshake_ptr->get_stage_user();
+
+        // Logging message
+        Logging::log_info ("StageHandshake <" + handshake_ptr->get_stage_name () + ", "
+            + std::to_string (handshake_ptr->get_stage_pid ()) + ", "
+            + std::to_string (handshake_ptr->get_stage_ppid ()) + ">");
+
     }
 
-    // Logging message
-    Logging::log_info ("StageHandshake <" + handshake_ptr->get_stage_name () + ", "
-        + std::to_string (handshake_ptr->get_stage_pid ()) + ", "
-        + std::to_string (handshake_ptr->get_stage_ppid ()) + ">");
+
 
     // return const value of the stage identifier's name
-    return std::make_tuple (handshake_ptr->get_stage_name (),
-        handshake_ptr->get_stage_env (),
-        handshake_ptr->get_stage_user ());
+    return all_stage_info;
 }
 
 // submit_housekeeping_rules call. (...)

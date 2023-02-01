@@ -25,7 +25,7 @@ namespace cheferd {
 class HandshakeSession {
 
 private:
-    long session_id_;
+    long socket_id_;
 
     std::queue<std::string> submission_queue_; // queue that contains the request to submit to the
     // data plane
@@ -106,7 +106,7 @@ public:
 
     /**
      * HandshakeSession parameterized constructor.
-     * @param id Data plane stage session id.
+     * @param id Data plane stage socket id.
      */
     explicit HandshakeSession (long id);
 
@@ -118,10 +118,9 @@ public:
     /**
      * StartSession: begin the enforcement session between the controller and
      * the data plane stage.
-     * @param socket Socket identifier of the communication channel between the
      * controller and the data plane stage.
      */
-    void StartSession (int socket);
+    void StartSession ();
 
     void RemoveSession ();
 

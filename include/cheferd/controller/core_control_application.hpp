@@ -15,13 +15,6 @@ namespace cheferd {
 // Threshold to decide if a new should be enforced.
 #define IOPS_THRESHOLD 10
 
-//  Detailed information related to a data plane stage.
-struct StageInfoCore {
-    std::string m_stage_name;
-    std::string m_stage_env;
-    std::string m_stage_user;
-    std::string m_local_address;
-};
 
 /**
  * CoreControlApplication class.
@@ -42,7 +35,8 @@ private:
     std::queue<std::string> local_queue;
 
     // Related to the registration of new data plane stages.
-    std::queue<std::tuple<std::string, std::pair<std::string, std::string>, std::string>>
+    std::mutex pending_register_stage_lock_;
+    std::queue<std::unique_ptr<StageInfo>>
         local_to_data_queue_;
 
     // Type of control (e.g., Static, Dynamic, ...).
@@ -56,9 +50,9 @@ private:
     // controller. (e.g., <"0.0.0.0:50052", ["job1+1", "job1+2"]>)
     std::unordered_map<std::string, std::vector<std::string>> local_to_stages;
 
-    // StageID -> StageInfoCore. Details each stage information.
-    // (e.g., <"job1+1", StageInfoCore>)
-    std::unordered_map<std::string, StageInfoCore> stage_info_detailed;
+    // StageID -> StageInfo. Details each stage information.
+    // (e.g., <"job1+1", StageInfo>)
+    std::unordered_map<std::string, std::unique_ptr<StageInfo>> stage_info_detailed;
 
     // AppID -> < LocalControllerID -> [Envs] >. Holds info about the location and  of each job
     // instance. (e.g., <"job1", <"0.0.0.0:50052", [1,2]>>
@@ -157,7 +151,7 @@ public:
 
     void operator() () override;
 
-    LocalControllerSession* register_local_controller_session (
+    void register_local_controller_session (
         const std::string& local_controller_address);
 
     void register_stage_session (const std::string& local_controller_address,

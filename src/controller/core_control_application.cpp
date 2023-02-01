@@ -64,6 +64,19 @@ void CoreControlApplication::initialize ()
     }
 }
 
+//    RegisterLocalControllerSession call. (...)
+void CoreControlApplication::register_local_controller_session (
+    const std::string& local_controller_address)
+{
+    Logging::log_debug ("RegisterLocalControllerSession -- " + local_controller_address);
+
+    pending_register_session_lock_.lock ();
+    local_queue.emplace (local_controller_address);
+    pending_register_session_lock_.unlock ();
+
+    this->m_pending_local_controller_sessions.fetch_add (1);
+}
+
 //    RegisterDataPlaneSession call. (...)
 void CoreControlApplication::register_stage_session (const std::string& local_controller_address,
     const std::string& stage_name,
@@ -73,64 +86,21 @@ void CoreControlApplication::register_stage_session (const std::string& local_co
     Logging::log_debug ("RegisterDataPlaneSession --" + local_controller_address + " : "
         + stage_name + "+" + stage_env);
 
+    std::unique_ptr<StageInfo> all_stage_info = std::make_unique<StageInfo>();
+    all_stage_info->m_stage_name = stage_name;
+    all_stage_info->m_stage_env = stage_env;
+    all_stage_info->m_stage_user = stage_user;
+    all_stage_info->m_local_address = local_controller_address;
+
+
+    pending_register_stage_lock_.lock ();
+
+    local_to_data_queue_.emplace (std::move(all_stage_info));
+    pending_register_stage_lock_.unlock ();
+
     this->m_pending_data_plane_sessions.fetch_add (1);
 
-    auto existing_locations = job_location_tracker.find (stage_name);
 
-    if (existing_locations == job_location_tracker.end ()) {
-        /* Does not exist */
-        std::unordered_map<std::string, std::vector<int>> locations;
-
-        std::vector<int> envs;
-        envs.push_back (std::stoi (stage_env));
-
-        locations.emplace (local_controller_address, envs);
-        job_location_tracker[stage_name] = locations;
-
-        job_demands.emplace (stage_name, -1);
-        job_previous_rates.emplace (stage_name, 0);
-        job_rates.emplace (stage_name, -1);
-    } else {
-        /* Already exists */
-        auto existing_envs = existing_locations->second.find (local_controller_address);
-
-        if (existing_envs == existing_locations->second.end ()) {
-            std::vector<int> envs;
-            envs.push_back (std::stoi (stage_env));
-            existing_locations->second[local_controller_address] = envs;
-        } else {
-            existing_envs->second.push_back (std::stoi (stage_env));
-        }
-    }
-
-    // TO-DO: Maybe complete this
-    StageInfoCore stage_info = {};
-    stage_info.m_stage_name = stage_name;
-    stage_info.m_stage_env = stage_env;
-    stage_info.m_stage_user = stage_user;
-    stage_info.m_local_address = local_controller_address;
-    std::string stage_name_env = stage_name + "+" + stage_env;
-    stage_info_detailed[stage_name_env] = stage_info;
-
-    auto existing_local_to_stages = local_to_stages.find (local_controller_address);
-
-    if (existing_local_to_stages == local_to_stages.end ()) {
-        std::vector<std::string> stages = {};
-        stages.push_back (stage_name_env);
-        local_to_stages[local_controller_address] = stages;
-    } else {
-        existing_local_to_stages->second.push_back (stage_name_env);
-    }
-
-    std::pair<std::string, std::string> stage_and_env = std::make_pair (stage_name, stage_env);
-    std::tuple<std::string, std::pair<std::string, std::string>, std::string> all_stage_info
-        = std::make_tuple (local_controller_address, stage_and_env, stage_user);
-    local_to_data_queue_.push (all_stage_info);
-
-    PStatus status
-        = this->mark_data_plane_stage_ready (local_controller_address, stage_name, stage_env);
-
-    /*TO-DO: Do something*/
 }
 
 // mark_data_plane_stage_ready call. (...)
@@ -161,26 +131,7 @@ PStatus CoreControlApplication::mark_data_plane_stage_ready (
     return status;
 }
 
-//    RegisterLocalControllerSession call. (...)
-LocalControllerSession* CoreControlApplication::register_local_controller_session (
-    const std::string& local_controller_address)
-{
-    Logging::log_debug ("RegisterLocalControllerSession -- " + local_controller_address);
 
-    pending_register_session_lock_.lock ();
-
-    this->local_sessions_.emplace (local_controller_address,
-        std::make_unique<LocalControllerSession> (local_controller_address));
-
-    this->local_to_stages.emplace (local_controller_address, std::vector<std::string> {});
-
-    this->m_pending_local_controller_sessions.fetch_add (1);
-
-    local_queue.push (local_controller_address);
-    pending_register_session_lock_.unlock ();
-
-    return local_sessions_.at (local_controller_address).get ();
-}
 
 // stage_handshake call. (...)
 PStatus CoreControlApplication::local_handshake (const std::string& local_controller_address)
@@ -203,41 +154,99 @@ PStatus CoreControlApplication::local_handshake (const std::string& local_contro
 
 void CoreControlApplication::handle_local_controller_sessions ()
 {
+    if (!local_queue.empty()) {
+        pending_register_session_lock_.lock ();
+        std::string local_controller_address = local_queue.front ();
+        local_queue.pop ();
+        pending_register_session_lock_.unlock ();
 
-    std::string local_controller_address = local_queue.front ();
+        m_pending_local_controller_sessions.fetch_sub (1);
 
-    pending_register_session_lock_.lock ();
+        this->local_sessions_.emplace (local_controller_address,
+            std::make_unique<LocalControllerSession> (local_controller_address));
 
-    PStatus status = this->local_handshake (local_controller_address);
-    local_queue.pop ();
-    pending_register_session_lock_.unlock ();
+        this->local_to_stages.emplace (local_controller_address, std::vector<std::string> {});
 
-    if (status.isOk ()) {
-        this->m_pending_local_controller_sessions.fetch_sub (1);
-        this->m_active_local_controller_sessions.fetch_add (1);
+        std::thread session_thread_t = std::thread (&LocalControllerSession::StartSession,
+            local_sessions_.at (local_controller_address).get (),
+            local_controller_address);
+        session_thread_t.detach ();
 
-        Logging::log_debug (
-            "LocalControllerSessionHandshake with Local Controller successfully established.");
-    } else {
-        Logging::log_error (
-            "LocalControllerSessionHandshake with Local Controller not established.");
+        PStatus status = this->local_handshake (local_controller_address);
 
-        std::this_thread::sleep_for (milliseconds (100));
+        m_active_local_controller_sessions.fetch_add (1);
     }
 }
 
 void CoreControlApplication::handle_data_plane_sessions ()
 {
-    std::tuple<std::string, std::pair<std::string, std::string>, std::string> stage_info
-        = local_to_data_queue_.front ();
+    if(!local_to_data_queue_.empty()){
+        pending_register_stage_lock_.lock ();
+        auto stage_info = std::move(local_to_data_queue_.front());
+        local_to_data_queue_.pop ();
+        pending_register_stage_lock_.unlock ();
 
-    local_to_data_queue_.pop ();
+        this->m_pending_data_plane_sessions.fetch_sub (1);
 
-    change_in_system = true;
+        change_in_system = true;
 
-    this->m_pending_data_plane_sessions.fetch_sub (1);
-    this->m_active_data_plane_sessions.fetch_add (1);
-    Logging::log_debug ("DataPlaneSessionHandshake with Data Plane successfully established.");
+        auto existing_locations = job_location_tracker.find (stage_info->m_stage_name);
+
+        if (existing_locations == job_location_tracker.end ()) {
+            /* Does not exist */
+            std::unordered_map<std::string, std::vector<int>> locations;
+
+            std::vector<int> envs;
+            envs.push_back (std::stoi (stage_info->m_stage_env));
+
+            locations.emplace (stage_info->m_local_address, envs);
+            job_location_tracker[stage_info->m_stage_name] = locations;
+
+            job_demands.emplace (stage_info->m_stage_name, -1);
+            job_previous_rates.emplace (stage_info->m_stage_name, 0);
+            job_rates.emplace (stage_info->m_stage_name, -1);
+        } else {
+            /* Already exists */
+            auto existing_envs = existing_locations->second.find (stage_info->m_local_address);
+
+            if (existing_envs == existing_locations->second.end ()) {
+                std::vector<int> envs;
+                envs.push_back (std::stoi (stage_info->m_stage_env));
+                existing_locations->second[stage_info->m_local_address] = envs;
+            } else {
+                existing_envs->second.push_back (std::stoi (stage_info->m_stage_env));
+            }
+        }
+
+        std::string stage_name_env = stage_info->m_stage_name + "+" + stage_info->m_stage_env;
+
+        auto existing_local_to_stages = local_to_stages.find (stage_info->m_local_address);
+        if (existing_local_to_stages == local_to_stages.end ()) {
+            std::vector<std::string> stages = {};
+            stages.push_back (stage_name_env);
+            local_to_stages[stage_info->m_local_address] = stages;
+        } else {
+            existing_local_to_stages->second.push_back (stage_name_env);
+        }
+
+        PStatus status
+            = this->mark_data_plane_stage_ready (stage_info->m_local_address, stage_info->m_stage_name, stage_info->m_stage_env);
+
+        //
+        stage_info_detailed[stage_name_env] = std::move(stage_info);
+
+        if (status.isOk ()) {
+            this->m_active_data_plane_sessions.fetch_add (1);
+
+            Logging::log_debug (
+                "DataPlaneSessionHandshake with Data Plane successfully established.");
+        } else {
+            Logging::log_error (
+                "DataPlaneSessionHandshake with Data Plane not established.");
+
+            std::this_thread::sleep_for (milliseconds (100));
+        }
+    }
 }
 
 // operator call. (...)
@@ -386,7 +395,7 @@ PStatus CoreControlApplication::call_local_handshake (const std::string& local_c
     }
 
     // Logging message
-    Logging::log_info ("LocalHandshake <>");
+    Logging::log_info ("LocalHandshake </>");
 
     return status;
 }
@@ -417,24 +426,25 @@ std::list<std::string> CoreControlApplication::collect_statistics_global_send ()
 
 void CoreControlApplication::remove_stage (const std::string& stage_name_env)
 {
-    StageInfoCore stage_info = stage_info_detailed.at (stage_name_env);
+    //TODO: Check if this is ok.
+    auto stage_info = stage_info_detailed.at(stage_name_env).get();
 
     std::unordered_map<std::string, std::vector<int>>& local_address_to_envs
-        = job_location_tracker.at (stage_info.m_stage_name);
-    std::vector<int>& envs = local_address_to_envs.at (stage_info.m_local_address);
+        = job_location_tracker.at (stage_info->m_stage_name);
+    std::vector<int>& envs = local_address_to_envs.at (stage_info->m_local_address);
 
-    envs.erase (std::remove (envs.begin (), envs.end (), std::stoi (stage_info.m_stage_env)),
+    envs.erase (std::remove (envs.begin (), envs.end (), std::stoi (stage_info->m_stage_env)),
         envs.end ());
 
     if (envs.empty ()) {
         Logging::log_debug ("ControlApplication: Envs is empty");
-        local_address_to_envs.erase (stage_info.m_local_address);
+        local_address_to_envs.erase (stage_info->m_local_address);
 
         if (local_address_to_envs.empty ()) {
-            job_location_tracker.erase (stage_info.m_stage_name);
-            job_rates.erase (stage_info.m_stage_name);
-            job_previous_rates.erase (stage_info.m_stage_name);
-            job_demands.erase (stage_info.m_stage_name);
+            job_location_tracker.erase (stage_info->m_stage_name);
+            job_rates.erase (stage_info->m_stage_name);
+            job_previous_rates.erase (stage_info->m_stage_name);
+            job_demands.erase (stage_info->m_stage_name);
 
             Logging::log_debug ("ControlApplication: No local sessions with app");
         }
@@ -446,6 +456,7 @@ void CoreControlApplication::remove_stage (const std::string& stage_name_env)
 
     Logging::log_debug ("ControlApplication: Removing a data plane session.");
 }
+
 
 void CoreControlApplication::collect_statistics_result (
     const std::unique_ptr<LocalControllerSession>& session,
@@ -729,10 +740,8 @@ void CoreControlApplication::send_enforcement_rule (std::string app_name,
 
     for (auto const& [local_address, envs] : local_to_envs) {
 
-        std::string enforcement_rule = std::to_string (CREATE_ENF_RULE) + "|" + "." + "0"
-            + "|" // rule-id
-            + app_name + "|" // ex: tensor; kvs
-            + operation + "|"; // operation
+        std::string enforcement_rule = std::to_string (CREATE_ENF_RULE);
+        enforcement_rule += "|.0|" + app_name + "|" + operation + "|";
 
         for (int env : envs) {
             std::string stage_env = app_name + "+" + std::to_string (env);

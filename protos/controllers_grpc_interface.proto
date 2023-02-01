@@ -91,8 +91,8 @@ message StatsGlobal {
 
 service LocalToGlobal{
   rpc ConnectLocalToGlobal (ConnectRequest) returns (ConnectReply) {}
-  rpc ConnectStageToGlobal (StageInfo) returns (ConnectReply) {}
-  rpc DisconnectStageToGlobal (StageInfo) returns (ConnectReply) {}
+  rpc ConnectStageToGlobal (StageInfoConnect) returns (ConnectReply) {}
+  rpc DisconnectStageToGlobal (StageInfoConnect) returns (ConnectReply) {}
 }
 
 // The request message containing the user's name.
@@ -100,7 +100,7 @@ message ConnectRequest {
   string user_address = 1;
 }
 
-message StageInfo {
+message StageInfoConnect {
   string local_address = 1;
   string stage_name = 2;
   string stage_env = 3;

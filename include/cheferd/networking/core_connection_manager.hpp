@@ -28,7 +28,7 @@
 using controllers_grpc_interface::ACK;
 using controllers_grpc_interface::ConnectReply;
 using controllers_grpc_interface::ConnectRequest;
-using controllers_grpc_interface::StageInfo;
+using controllers_grpc_interface::StageInfoConnect;
 using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
@@ -68,7 +68,7 @@ private:
         ConnectReply* reply) override;
 
     Status ConnectStageToGlobal (ServerContext* context,
-        const StageInfo* request,
+        const StageInfoConnect* request,
         ConnectReply* reply) override;
 
 public:
