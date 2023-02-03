@@ -317,7 +317,7 @@ void CoreControlApplication::execute_feedback_loop ()
                     + "[µs]");
 
                 if (this->m_active_local_controller_sessions.load () > 0)
-                    this->compute_and_enforce_equal_static_rules (d_stats);
+                    this->compute_and_enforce_static_rules (d_stats);
 
                 break;
             }
@@ -613,7 +613,7 @@ void CoreControlApplication::parse_rule_with_break (const std::string& rule,
     }
 }
 
-void CoreControlApplication::compute_and_enforce_equal_static_rules (
+void CoreControlApplication::compute_and_enforce_static_rules (
     const std::unordered_map<std::string, std::unique_ptr<StageResponse>>& d_stats)
 {
 

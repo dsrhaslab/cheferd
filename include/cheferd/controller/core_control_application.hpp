@@ -112,7 +112,7 @@ private:
      * Compute:
      * @param statistics_ptr
      */
-    void compute_and_enforce_equal_static_rules (
+    void compute_and_enforce_static_rules (
         const std::unordered_map<std::string, std::unique_ptr<StageResponse>>& d_stats);
 
     void compute_and_enforce_dynamic_vanilla_rules (
