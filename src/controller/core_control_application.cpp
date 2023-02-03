@@ -648,29 +648,10 @@ void CoreControlApplication::compute_and_enforce_static_rules (
             "ControlApplication: Change in system: " + std::to_string (current_jobs));
 
         if (current_jobs > 0) {
-            long left_iops = maximum_limit;
-
-            int defined_job_rates = 0;
             for (auto const& job_demand : job_demands) {
 
                 if (job_demand.second != -1) {
                     job_rates[job_demand.first] = job_demand.second;
-                    left_iops = left_iops - job_demand.second;
-                    defined_job_rates++;
-                }
-            }
-
-            int undefined_job_rates = current_jobs - defined_job_rates;
-
-            if (undefined_job_rates > 0) {
-                long left_fair_rate = left_iops / undefined_job_rates;
-
-                /*Fill rest of job rates*/
-                for (auto const& job_demand : job_demands) {
-
-                    if (job_demand.second == -1) {
-                        job_rates[job_demand.first] = left_fair_rate;
-                    }
                 }
             }
 
