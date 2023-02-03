@@ -217,6 +217,7 @@ void LocalControlApplication::handle_data_plane_sessions ()
                     stage_identifier->m_stage_user);
 
                 if (status.ok()) {
+                    m_active_data_plane_sessions.fetch_add (1);
                     // index++;
                     // this->m_pending_data_plane_sessions.fetch_sub (1);
 
@@ -291,6 +292,11 @@ void LocalControlApplication::execute_feedback_loop ()
 
         this->sleep ();
     }
+
+    Logging::log_info ("Working application: " + std::to_string(working_application_.load()));
+    Logging::log_info ("Working m_pending_data_plane_sessions: " + std::to_string(m_pending_data_plane_sessions.load()));
+    Logging::log_info ("Working m_active_data_plane_sessions: " + std::to_string(m_active_data_plane_sessions.load()));
+
 
     working_application_ = false;
 
