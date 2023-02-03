@@ -617,23 +617,9 @@ void CoreControlApplication::compute_and_enforce_static_rules (
     const std::unordered_map<std::string, std::unique_ptr<StageResponse>>& d_stats)
 {
 
-    std::string static_rule = dequeue_rule_from_queue ();
+    std::string new_operation = update_job_demands();
 
-    if (!static_rule.empty ()) {
-
-        std::vector<std::string> tokens {};
-
-        parse_rule_with_break (static_rule, &tokens);
-
-        if (tokens[1] == "job") {
-            Logging::log_debug ("ControlApplication: Received static rule at job-level.");
-            std::string job_name = tokens[2];
-            long job_limit = std::stol (tokens[4]);
-
-            // job_rates.emplace(job_name, job_limit);
-            job_demands[job_name] = job_limit;
-        }
-
+    if (new_operation!=""){
         change_in_system = true;
     }
 
@@ -660,8 +646,7 @@ void CoreControlApplication::compute_and_enforce_static_rules (
             for (auto const& app : job_location_tracker) {
 
                 // validate if assigned rate surpasses the changing bandwidth threshold
-                if (!change_in_system
-                    && abs (job_rates[app.first] - job_previous_rates[app.first])
+                if (abs (job_rates[app.first] - job_previous_rates[app.first])
                         < IOPS_THRESHOLD) {
 
                     job_rates[app.first] = -1;
@@ -687,7 +672,7 @@ std::string CoreControlApplication::update_job_demands ()
         std::vector<std::string> tokens {};
         parse_rule_with_break (new_rule, &tokens);
 
-        if (tokens[1].compare ("demand") == 0) {
+        if (tokens[1] == "demand" || tokens[1] == "job") {
             std::string job_name = tokens[2];
             Logging::log_debug (
                 "ControlApplication: Received rule for dynamic control with demands.");
@@ -811,7 +796,7 @@ void CoreControlApplication::compute_and_enforce_dynamic_vanilla_rules (
             job_rates[app.first] += (left_iops / current_jobs);
 
             // Validate if assigned rate surpasses the changing bandwidth threshold
-            if (!change_in_system
+            if (!change_in_system.load()
                 && abs (job_rates[app.first] - job_previous_rates[app.first]) < IOPS_THRESHOLD) {
                 job_rates[app.first] = -1;
             } else {
@@ -945,7 +930,7 @@ void CoreControlApplication::compute_and_enforce_dynamic_leftover_rules (
             auto rates_difference = abs (job_rates[app.first] - job_previous_rates[app.first]);
 
             // validate if assigned rate surpasses the changing bandwidth threshold
-            if (!change_in_system
+            if (!change_in_system.load()
                 && (rates_difference < (job_rates[app.first] * 0.01)
                     || (system_total_rate < 0.95 * maximum_limit
                         && rates_difference
