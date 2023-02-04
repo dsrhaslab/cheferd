@@ -158,6 +158,7 @@ public:
     void stop_feedback_loop () override;
 
     void parse_rule (const std::string& rule, std::vector<std::string>* tokens, char c);
+    PStatus mark_stage_ready (const std::string& stage_name_env) const;
 };
 
 } // namespace cheferd

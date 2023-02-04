@@ -207,10 +207,13 @@ void LocalControlApplication::handle_data_plane_sessions ()
             Logging::log_debug ("installed rules ... (" + std::to_string (installed_rules) + ") in ("
                 + stage_env + ")");
 
-            if (installed_rules == housekeeping_rules_ptr_->size()) {
+            if (installed_rules == housekeeping_rules_ptr_->size() && mark_stage_ready (stage_env).isOk()) {
 
                 Logging::log_debug ("LocalControlApplication: Connecting Stage to Global ("
                     + stage_identifier->m_stage_name + ")");
+
+
+
 
                 Status status = ConnectStageToGlobal (stage_identifier->m_stage_name,
                     stage_identifier->m_stage_env,
@@ -421,6 +424,34 @@ int LocalControlApplication::submit_housekeeping_rules (const std::string& stage
     return valid_housekeeping_rules;
 }
 
+// submit_housekeeping_rules call. (...)
+PStatus LocalControlApplication::mark_stage_ready (const std::string& stage_name_env) const
+{
+    PStatus status = PStatus::Error ();
+    int rule_counter = 0;
+
+    std::string rule = std::to_string (STAGE_READY) + "|";
+
+    status = preparing_data_sessions_.at (stage_name_env)->SubmitRule (rule);
+
+
+    std::unique_ptr<StageResponse> response = nullptr;
+    if (status.isOk ()) {
+        std::unique_ptr<StageResponse> response
+            = preparing_data_sessions_.at (stage_name_env)->GetResult ();
+        auto* ack_ptr = dynamic_cast<StageResponseACK*> (response.get ());
+
+        // validate data plane stage response
+        if (ack_ptr != nullptr) {
+            if (ack_ptr->ACKValue () == static_cast<int> (AckCode::ok)) {
+                status = PStatus::OK();
+            }
+        }
+
+    }
+    return status;
+}
+
 // sleep call. (...)
 void LocalControlApplication::sleep ()
 {
@@ -522,44 +553,10 @@ Status LocalControlApplication::MarkStageReady (ServerContext* context,
 
         //   // found
     }
-
-    //
-    //
-
-    PStatus status = PStatus::OK ();
-
-    status = this->data_sessions_[request->stage_name_env ()]->SubmitRule (rule);
-    std::unique_ptr<StageResponse> ack_ptr = nullptr;
-    if (status.isOk ()) {
-        std::unique_ptr<StageResponse> ack_ptr
-            = this->data_sessions_[request->stage_name_env ()]->GetResult ();
-    }
-    //            return Status::OK;
-
     // verify if pointer is valid
     reply->set_m_message (1);
     return Status::OK;
 
-    /*if (ack_ptr != nullptr) {
-        auto* response_ptr = dynamic_cast<StageResponseACK*> (ack_ptr.get ());
-
-        Logging::log_debug ("ACK response :: " + std::to_string (response_ptr->ResponseType ())
-                            + " -- " + response_ptr->toString ());
-
-        if (response_ptr->ACKValue () == 1) {
-            reply->set_m_message(1);
-            return Status::OK;
-        } else {
-            //reply->set_m_message(0);
-            //return Status::CANCELLED;
-            reply->set_m_message(1);
-            return Status::OK;
-        }
-    }
-
-
-    return Status::CANCELLED;
-*/
 }
 
 
