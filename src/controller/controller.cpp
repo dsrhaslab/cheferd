@@ -1,47 +1,52 @@
 /**
- *   Written by Ricardo Macedo and João Paulo.
- *   Copyright (c) 2020 INESC TEC.
+ *   Copyright (c) 2022 INESC TEC.
  **/
 
-#include <shepherd/controller/controller.hpp>
+#include <cheferd/controller/controller.hpp>
 
-namespace shepherd {
+namespace cheferd {
 
-Controller::Controller (ControllerType controller_type,
-                        ControlType control_type,
-                        std::string& core_address,
-                        const uint64_t& cycle_sleep_time):
-    m_connection_manager {core_address},
-    m_system_admin {control_type},
+// Core Controller parameterized constructor.
+Controller::Controller (ControlType control_type,
+    std::string& core_address,
+    const uint64_t& cycle_sleep_time,
+    long system_limit) :
+    m_system_admin { control_type },
     m_housekeeping_rules {}
 {
 
-    m_control_application
-        = new CoreControlApplication(control_type, &m_housekeeping_rules, cycle_sleep_time);
+    m_connection_manager = new CoreConnectionManager (core_address);
+    m_control_application = new CoreControlApplication (control_type,
+        &m_housekeeping_rules,
+        cycle_sleep_time,
+        system_limit);
 }
 
-Controller::Controller (ControllerType controller_type,
-                        std::string& core_address,
-                        std::string& local_address,
-                        const uint64_t& cycle_sleep_time):
-    m_connection_manager {core_address, local_address},
+// Local Controller parameterized constructor.
+Controller::Controller (std::string& core_address,
+    std::string& local_address,
+    const uint64_t& cycle_sleep_time) :
     m_system_admin { ControlType::NOOP },
     m_housekeeping_rules {}
 {
-    m_control_application = new LocalControlApplication(&m_housekeeping_rules, core_address, local_address, option_default_control_application_sleep);
+    m_connection_manager = new LocalConnectionManager (core_address, local_address);
+    m_control_application = new LocalControlApplication (&m_housekeeping_rules,
+        core_address,
+        local_address,
+        option_default_control_application_sleep);
 }
 
-//    Controller default destructor.
+// Controller default destructor.
 Controller::~Controller () = default;
 
-//    RegisterHousekeepingRules call.
-void Controller::RegisterHousekeepingRules (const std::string path)
+// RegisterHousekeepingRules call. Processes housekeeping rules.
+void Controller::RegisterHousekeepingRules (const std::string& path)
 {
     Logging::log_info ("Register Housekeeping Rules.");
     PolicyGenerator generator {};
 
     // create parser object. Rules are parsed at creation time.
-    RulesFileParser file_parser { RuleType::housekeeping, path};
+    RulesFileParser file_parser { RuleType::housekeeping, path };
     int rules_size;
 
     // create, insert, and execute HousekeepingRules of type HSK_CREATE_CHANNEL
@@ -56,7 +61,7 @@ void Controller::RegisterHousekeepingRules (const std::string path)
             hsk_enf_channel);
 
         // store Housekeeping Rule of type HSK_CREATE_CHANNEL in string format
-        this->m_housekeeping_rules.push_back(hsk_enf_channel);
+        this->m_housekeeping_rules.push_back (hsk_enf_channel);
     }
 
     // create, insert, and execute HousekeepingRules of type HSK_CREATE_OBJECT
@@ -72,45 +77,39 @@ void Controller::RegisterHousekeepingRules (const std::string path)
 
         // store Housekeeping Rule of type HSK_CREATE_OBJECT in string
         // format
-        this->m_housekeeping_rules.push_back(hsk_enf_object);
+        this->m_housekeeping_rules.push_back (hsk_enf_object);
     }
 }
 
-
-//    SpawnControlAlgorithm call.
-void Controller::SpawnControlAlgorithm (const std::string& controller_type)
+// SpawnControlApplication call. Starts the control application that orchestrates the system.
+void Controller::SpawnControlApplication ()
 {
-    if (controller_type.compare ("global") == 0){
-        Logging::log_info ("Spawning Global Control Algorithm -- ");
-        std::thread control_application_thread_t = std::thread (std::ref(dynamic_cast<CoreControlApplication&>(*m_control_application)));
-        control_application_thread_t.detach ();
-    }
-    else {
-        Logging::log_info ("Spawning Local Control Algorithm -- " );
-        std::thread control_application_thread_t = std::thread (std::ref(dynamic_cast<LocalControlApplication&>(*m_control_application)));
-        control_application_thread_t.detach ();
-    }
+    Logging::log_info ("Spawning Control Algorithm -- ");
+    std::thread control_application_thread_t = std::thread (std::ref (*m_control_application));
+    control_application_thread_t.detach ();
 }
 
-//    SpawnControlAlgorithm call.
+// SpawnSystemAdmin call. Spawns a thread that mimics the behavior of a SysAdmin.
 void Controller::SpawnSystemAdmin ()
 {
     Logging::log_info ("Spawning System Admin -- ");
-
-    std::thread system_admin_thread_t = std::thread (m_system_admin, dynamic_cast<CoreControlApplication*>(m_control_application));
+    std::thread system_admin_thread_t = std::thread (m_system_admin,
+        dynamic_cast<CoreControlApplication*> (m_control_application));
     system_admin_thread_t.detach ();
 }
 
-//    Start call.
-void Controller::Start (const std::string& controller_type)
+// SpawnConnectionManager call. Spawn the connection manager to start to accept connections.
+void Controller::SpawnConnectionManager ()
 {
-    if (controller_type.compare ("global") == 0) {
-        m_connection_manager.Start (dynamic_cast<CoreControlApplication*>(m_control_application));
-    }
-    else{
-        m_connection_manager.Start (dynamic_cast<LocalControlApplication*>(m_control_application));
-    }
+    m_connection_manager->Start (m_control_application);
 }
 
+// StopController call. Stops the controller, including the connection manager and control
+// application.
+void Controller::StopController ()
+{
+    m_connection_manager->Stop ();
+    m_control_application->stop_feedback_loop ();
+}
 
-} // namespace shepherd
+} // namespace cheferd

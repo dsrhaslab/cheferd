@@ -1,50 +1,59 @@
 /**
- *   Written by Ricardo Macedo.
- *   Copyright (c) 2020 INESC TEC.
+ *   Copyright (c) 2022 INESC TEC.
  **/
 
-#include <shepherd/utils/status.hpp>
+#include <cheferd/utils/status.hpp>
 
-namespace shepherd {
+namespace cheferd {
 
+// PStatus default constructor.
 PStatus::PStatus () : state_ { StatusCode::nostatus }
 { }
 
-PStatus::~PStatus () = default;
-
+// PStatus parameterized constructor.
 PStatus::PStatus (PStatus::StatusCode code) : state_ { code }
 { }
 
+// PStatus default destructor.
+PStatus::~PStatus () = default;
+
+// OK call. Returns OK status code.
 PStatus PStatus::OK ()
 {
     return PStatus (StatusCode::ok);
 }
 
+// NotSupported call. Returns NotSupported status code.
 PStatus PStatus::NotSupported ()
 {
     return PStatus (StatusCode::notsupported);
 }
 
+// Error call. Returns Error status code.
 PStatus PStatus::Error ()
 {
     return PStatus (StatusCode::error);
 }
 
+// isOk: Checks if status is OK
 bool PStatus::isOk ()
 {
     return (state_ == StatusCode::ok);
 }
 
+// isNotSupported: Checks if status is NotSupported.
 bool PStatus::isNotSupported ()
 {
     return (state_ == StatusCode::notsupported);
 }
 
+// isError: Checks if status is isError.
 bool PStatus::isError ()
 {
     return (state_ == StatusCode::error);
 }
 
+// toString: Converts PStatus into string format.
 std::string PStatus::toString ()
 {
     std::string state_string;
@@ -71,4 +80,4 @@ std::string PStatus::toString ()
     return state_string;
 }
 
-} // namespace shepherd
+} // namespace cheferd

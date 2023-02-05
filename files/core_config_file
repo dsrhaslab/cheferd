@@ -1,0 +1,6 @@
+controller: core
+core_address: 0.0.0.0:50051
+control_type: 1
+system_limit: 1000000
+housekeeping_rules_file: ../files/posix_layer_housekeeping_rules_static_op
+policies_rules_file: ../files/static_rules_with_time_file_job

@@ -21,24 +21,18 @@ option objc_class_prefix = "HLW";
 
 package controllers_grpc_interface;
 
-
 service GlobalToLocal{
   rpc LocalHandshake (LocalSimplifiedHandshakeRaw) returns (ACK) {}
   rpc StageHandshake (ControlOperation) returns (StageSimplifiedHandshakeRaw) {}
   rpc MarkStageReady (StageReadyRaw) returns (ACK) {}
-  rpc CreateHouseKeepingRuleChannel (HousekeepingCreateChannelString) returns (ACK) {}
-  rpc CreateHouseKeepingRuleObject (HousekeepingCreateObjectString) returns (ACK) {}
-  rpc ExecuteHousekeepingRules (Execute) returns (ACK) {}
-  rpc CreateEnforcementRule (EnforcementRuleString) returns (ACK) {}
+  rpc CreateEnforcementRule (EnforcementRules) returns (ACK) {}
   rpc CollectGlobalStatistics (ControlOperation) returns (StatsGlobalMap) {}
-  rpc CollectEntityStatistics (ControlOperation) returns (StatsEntityMap) {}
+  rpc CollectGlobalStatisticsAggregated (ControlOperation) returns (StatsGlobalMap) {}
 }
-
 
 message LocalSimplifiedHandshakeRaw {
   repeated string rules = 1;
 }
-
 
 message ControlOperation {
   int32 m_operation_id = 1; // ControlReceive identifier.
@@ -48,7 +42,6 @@ message ControlOperation {
   // HSK_CREATE_CHANNEL, HSK_CREATE_OBJECT, ...).
   int32 m_size = 4; // Size of the RAW object to receive.
 };
-
 
 message StageSimplifiedHandshakeRaw {
   string m_stage_name = 1;
@@ -64,124 +57,48 @@ message StageReadyRaw {
   string stage_name_env = 2;
 }
 
-message HousekeepingCreateChannelString {
-  string m_stage_name = 1;
-  string m_stage_env = 2;
-  string m_rule = 3;
-}
-
-message HousekeepingCreateObjectString {
-  string m_stage_name = 1;
-  string m_stage_env = 2;
-  string m_rule = 3;
-}
-
-message HousekeepingCreateChannelRaw {
-  uint64 m_rule_id = 1;
-  int32 m_rule_type = 2;
-  int64 m_channel_id = 3;
-  int32 m_context_definition = 4;
-  uint32 m_workflow_id = 5;
-  uint32 m_operation_type = 6;
-  uint32 m_operation_context = 7;
-}
-
-message HousekeepingCreateObjectRaw {
-  uint64 m_rule_id = 1;
-  int32 m_rule_type = 2;
-  int64 m_channel_id = 3;
-  int64 m_enforcement_object_id = 4;
-  int32 m_context_definition = 5;
-  uint32 m_operation_type = 6;
-  uint32 m_operation_context = 7;
-  int64 m_enforcement_object_type = 8;
-  int64 m_property_first = 9;
-  int64 m_property_second = 10;
-}
-
-
 message ACK {
   int32 m_message = 1;
 }
 
-message Execute {
-  string m_stage_name = 1;
-  string m_stage_env = 2;
-  bool execute_all = 3;
+message EnforcementRules {
+  //<operation, ...>
+  map<string, EnforcementOpRules> operation_rules = 1;
 }
 
-
-message EnforcementRuleString {
+message EnforcementOpRules {
   int64 m_rule_id = 1;
   string m_stage_name = 2;
-  string m_operation = 3;
-  map<int64, int64> env_rates = 4;
+  map<int64, int64> env_rates = 3;
 }
-
-message EnforcementRuleRaw {
-  int64 m_rule_id = 1;
-  int64 m_channel_id = 2;
-  int64 m_enforcement_object_id = 3;
-// // int m_enforcement_object_type { 0 }; // fixme: probably not needed; remove
-  int32 m_enforcement_operation = 4;
-  int64 m_property_first = 5;
-  int64 m_property_second = 6;
-  int64 m_property_third = 7;
-}
-
-message StatsEntity {
-  map<string, double> ent_stats = 1;
-}
-
-message StatsEntityMap {
-  map<string, StatsEntity> stats = 1;
-};
-
-message StatsMetadata {
-  double m_open_rate = 1;
-  double m_close_rate = 2;
-  double m_getattr_rate = 3;
-  double m_metadata_total_rate = 4;
-};
-
 
 message StatsGlobalMap {
-  map<string, StatsGlobal > gl_stats= 1;
+  map<string, StatsGlobal > gl_stats = 1;
 };
 
 message StatsGlobal {
-  double m_read_rate = 3;
-  double m_write_rate = 4;
-  double m_open_rate = 5;
-  double m_close_rate = 6;
-  double m_getattr_rate = 7;
   double m_metadata_total_rate = 8;
 };
-
 
 //////
 
 service LocalToGlobal{
   rpc ConnectLocalToGlobal (ConnectRequest) returns (ConnectReply) {}
-  rpc ConnectStageToGlobal (StageInfo) returns (ConnectReply) {}
-  rpc DisconnectStageToGlobal (StageInfo) returns (ConnectReply) {}
+  rpc ConnectStageToGlobal (StageInfoConnect) returns (ConnectReply) {}
+  rpc DisconnectStageToGlobal (StageInfoConnect) returns (ConnectReply) {}
 }
 
-// The request message containing the user's name.
 message ConnectRequest {
   string user_address = 1;
 }
 
-message StageInfo {
+message StageInfoConnect {
   string local_address = 1;
   string stage_name = 2;
   string stage_env = 3;
   string stage_user = 4;
 }
 
-
-
-// The response message containing the greetings
 message ConnectReply {
   string message = 1;
 }

@@ -1,0 +1,3 @@
+controller: local
+core_address: 0.0.0.0:50051
+local_address: 0.0.0.0:50053

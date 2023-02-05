@@ -1,6 +1,6 @@
-1 20 mds mds1 m_total 1000
-2 30 mds mds2 m_total 1000
-3 60 mds mds1 m_total 500
-4 75 mds mds2 m_total 200
+1 15 mds mds1 m_total 1000
+2 20 mds mds2 m_total 1000
+3 30 mds mds1 m_total 600
+4 35 mds mds2 m_total 200
 5 90 mds mds1 m_total 10
 6 110 mds mds2 m_total 5

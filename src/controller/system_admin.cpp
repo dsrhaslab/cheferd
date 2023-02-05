@@ -1,42 +1,41 @@
-#include "shepherd/controller/system_admin.hpp"
+/**
+ *   Copyright (c) 2022 INESC TEC.
+ **/
 
+#include "cheferd/controller/system_admin.hpp"
 
-namespace shepherd {
+namespace cheferd {
 
-SystemAdmin::SystemAdmin (ControlType control_type):
-    m_control_type {control_type}
+// SystemAdmin default constructor.
+SystemAdmin::SystemAdmin (ControlType control_type) : m_control_type { control_type }
 { }
 
-
-
+// SystemAdmin default destructor.
 SystemAdmin::~SystemAdmin ()
 { }
 
-
-
-
+// operator call. SystemAdmin execution. Reads rules from inputted file, and submits them
+// to control application.
 void SystemAdmin::operator() (CoreControlApplication* m_control_application)
 {
-
     std::vector<std::vector<std::string>> m_staged_rules {};
 
     std::string line;
     std::ifstream input_stream;
 
     int total_rules = 0;
-    // open file stream
 
-    switch (m_control_type){
+    switch (m_control_type) {
         case ControlType::STATIC: {
             input_stream.open (option_static_rules_with_time_file_path_job);
             break;
         }
-        case ControlType::DYNAMIC: {
+        case ControlType::DYNAMIC_VANILLA: {
             input_stream.open (option_dynamic_rules_with_time_file_path_);
             break;
         }
-        case ControlType::MDS: {
-            input_stream.open (option_mds_rules_with_time_file_path_);
+        case ControlType::DYNAMIC_LEFTOVER: {
+            input_stream.open (option_dynamic_rules_with_time_file_path_);
             break;
         }
         default:
@@ -69,37 +68,27 @@ void SystemAdmin::operator() (CoreControlApplication* m_control_application)
         Logging::log_error ("SystemAdmin: cannot open file.");
     }
 
-
-    auto start_time = std::chrono::system_clock::now();
-    auto waitUntil = std::chrono::system_clock::now();
+    auto start_time = std::chrono::system_clock::now ();
+    auto waitUntil = std::chrono::system_clock::now ();
 
     for (auto& staged_rule : m_staged_rules) {
 
-         std::string enf_rule;
+        std::string enf_rule;
 
-         enf_rule += "|"+
-             staged_rule[0] + "|" +
-             staged_rule[2] + "|" +
-             staged_rule[3] + "|" +
-             staged_rule[4] + "|" +
-             staged_rule[5] + "|";
+        enf_rule += "|" + staged_rule[0] + "|" + staged_rule[2] + "|" + staged_rule[3] + "|"
+            + staged_rule[4] + "|" + staged_rule[5] + "|";
 
+        waitUntil = start_time + std::chrono::milliseconds (std::stoll (staged_rule[1]) * 1000);
 
-        waitUntil = start_time + std::chrono::milliseconds(std::stoll(staged_rule[1])*1000);
-
-        //Check time
-        while (waitUntil > std::chrono::system_clock::now())
-        {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        // Check time
+        while (waitUntil > std::chrono::system_clock::now ()) {
+            std::this_thread::sleep_for (std::chrono::milliseconds (10));
         }
 
-        //Submit to queue in Control
-
-        Logging::log_debug ("SystemAdmin: Rule submitted "+ enf_rule);
-        m_control_application->EnqueueRuleInQueue(enf_rule);
-
-
+        // Submit to queue in Control
+        Logging::log_debug ("SystemAdmin: Rule submitted " + enf_rule);
+        m_control_application->enqueue_rule_in_queue (enf_rule);
     }
 }
 
-}
+} // namespace cheferd

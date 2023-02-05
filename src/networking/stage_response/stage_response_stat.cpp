@@ -1,77 +1,43 @@
 /**
- *   Written by Ricardo Macedo.
- *   Copyright (c) 2020 INESC TEC.
+ *   Copyright (c) 2022 INESC TEC.
  **/
 
-#include "shepherd/networking/stage_response/stage_response_stat.hpp"
+#include "cheferd/networking/stage_response/stage_response_stat.hpp"
 
-namespace shepherd {
+namespace cheferd {
 
-//    StageResponseStat default constructor.
-StageResponseStat::StageResponseStat () :
-    m_instance_read_bandwidth { 0 },
-    m_instance_write_bandwidth { 0 },
-    m_pid_read_bandwidth { 0 },
-    m_pid_write_bandwidth { 0 }
+// StageResponseStat default constructor.
+StageResponseStat::StageResponseStat () : m_total_rate { 0 }
 { }
 
-//    StageResponseStat parameterized constructor.
-StageResponseStat::StageResponseStat (const int& response_type,
-    const double& instance_read_bandwidth,
-    const double& instance_write_bandwidth,
-    const double& pid_read_bandwidth,
-    const double& pid_write_bandwidth
-        ) :
+// StageResponseStat parameterized constructor.
+StageResponseStat::StageResponseStat (const int& response_type, const double& total_rate) :
     StageResponse { response_type },
-    m_instance_read_bandwidth { instance_read_bandwidth },
-    m_instance_write_bandwidth { instance_write_bandwidth },
-    m_pid_read_bandwidth { pid_read_bandwidth },
-    m_pid_write_bandwidth { pid_write_bandwidth }
+    m_total_rate { total_rate }
 { }
 
-//    StageResponseStat default destructor.
+// StageResponseStat default destructor.
 StageResponseStat::~StageResponseStat () = default;
 
-//    ResponseType call. (...)
+// ResponseType call. Get response's type
 int StageResponseStat::ResponseType () const
 {
     return response_type_;
 }
 
-// get_read_rate call. (...)
-double StageResponseStat::get_read_rate () const
+// get_total_rate call. Get data plane stage total rate
+double StageResponseStat::get_total_rate () const
 {
-    return this->m_instance_read_bandwidth;
+    return this->m_total_rate;
 }
 
-// get_read_rate call. (...)
-double StageResponseStat::get_write_rate () const
-{
-    return this->m_instance_write_bandwidth;
-}
-
-// get_read_rate call. (...)
-double StageResponseStat::get_pid_read_rate () const
-{
-    return this->m_pid_read_bandwidth;
-}
-
-// get_read_rate call. (...)
-double StageResponseStat::get_pid_write_rate () const
-{
-    return this->m_pid_write_bandwidth;
-}
-
-//    toString call. (...)
+// toString call. Converts response to string.
 std::string StageResponseStat::toString () const
 {
-    std::string return_value_t = "StatsKVS {" +
-            std::to_string (m_instance_read_bandwidth / 1024 / 1024) + ", " +
-            std::to_string (m_instance_write_bandwidth / 1024 / 1024) + ", " +
-            std::to_string (m_pid_read_bandwidth / 1024 / 1024) + ", " +
-            std::to_string (m_pid_write_bandwidth / 1024 / 1024) + "}";
+    std::string return_value_t
+        = "StageResponseStat {" + std::to_string (m_total_rate / 1024 / 1024) + "}";
 
     return return_value_t;
 }
 
-} // namespace shepherd
+} // namespace cheferd
