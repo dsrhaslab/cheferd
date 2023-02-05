@@ -260,13 +260,18 @@ Status LocalControlApplication::LocalHandshake (ServerContext* context,
         if (rule_tokens[2].compare ("create_channel") == 0) {
             auto channel_object = std::make_pair (std::stoi (rule_tokens[3]), 1);
 
-            auto channels_objects = operation_to_channel_object.find (rule_tokens[6]);
+            std::string operation = rule_tokens[6];
+            if (rule_tokens[6] == "no_op"){
+                operation = rule_tokens[7];
+            }
+
+            auto channels_objects = operation_to_channel_object.find (operation);
 
             if (channels_objects == operation_to_channel_object.end ()) {
 
                 std::vector<std::pair<int, int>> new_channels_objects;
                 new_channels_objects.push_back (channel_object);
-                operation_to_channel_object.emplace (rule_tokens[6], new_channels_objects);
+                operation_to_channel_object.emplace (operation, new_channels_objects);
             } else {
                 channels_objects->second.push_back (channel_object);
             }
@@ -333,26 +338,24 @@ Status LocalControlApplication::CreateEnforcementRule (ServerContext* context,
 
                     int channel_id = channel_objects.first;
                     int enforcement_object_id = channel_objects.second;
-                    // TO-DO: Remove this
-                    if (channel_id == 2000) {
-                        std::string enforcement_rule = std::to_string (CREATE_ENF_RULE) + "|"
-                            + std::to_string (operation_rates.second.m_rule_id ()) + "|" // rule-id
-                            + std::to_string (channel_id) + "|"
-                            + std::to_string (enforcement_object_id) + "|" + "drl" + "|" + "rate"
-                            + "|" + std::to_string (limit_per_channel);
 
-                        status = LocalPassthru (operation_rates.second.m_stage_name () + "+"
-                                + std::to_string (env_rate.first),
-                            enforcement_rule);
+                    std::string enforcement_rule = std::to_string (CREATE_ENF_RULE) + "|"
+                        + std::to_string (operation_rates.second.m_rule_id ()) + "|" // rule-id
+                        + std::to_string (channel_id) + "|"
+                        + std::to_string (enforcement_object_id) + "|" + "drl" + "|" + "rate"
+                        + "|" + std::to_string (limit_per_channel);
 
-                        if (status.ok ()) {
-                            reply->set_m_message (1);
-                        } else {
-                            // reply->set_m_message(0);
-                            // return status;
-                            reply->set_m_message (1);
-                            return Status::OK;
-                        }
+                    status = LocalPassthru (operation_rates.second.m_stage_name () + "+"
+                            + std::to_string (env_rate.first),
+                        enforcement_rule);
+
+                    if (status.ok ()) {
+                        reply->set_m_message (1);
+                    } else {
+                        // reply->set_m_message(0);
+                        // return status;
+                        reply->set_m_message (1);
+                        return Status::OK;
                     }
                 }
             }

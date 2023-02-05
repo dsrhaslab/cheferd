@@ -337,7 +337,7 @@ void CoreControlApplication::compute_and_enforce_static_rules (
         change_in_system = true;
     }
 
-    std::string operation = *(active_ops.begin ());
+    std::string operation = active_op;
 
     Logging::log_debug ("ControlApplication: Computing Static Rules ");
 
@@ -404,7 +404,7 @@ void CoreControlApplication::compute_and_enforce_dynamic_vanilla_rules (
             left_iops -= job_rates[app.first];
         }
 
-        operation = *(active_ops.begin ());
+        operation = active_op;
         current_jobs = job_location_tracker.size ();
         std::unordered_map<std::string, bool> job_address_updated;
 
@@ -524,7 +524,7 @@ void CoreControlApplication::compute_and_enforce_dynamic_leftover_rules (
         }
 
         left_iops = 0;
-        std::string operation = *(active_ops.begin ());
+        std::string operation = active_op;
         current_jobs = job_location_tracker.size ();
         std::unordered_map<std::string, bool> job_address_updated;
         std::unordered_map<std::string, bool> maintain_previous_job_rate;
@@ -616,9 +616,16 @@ void CoreControlApplication::initialize ()
         parse_rule_with_break (specific_rule, &tokens);
 
         if (tokens[2] == "create_channel") {
-            active_ops.insert (tokens[6]);
+            if (tokens[6] == "no_op"){
+                active_ops.insert (tokens[7]);
+            }
+            else {
+                active_ops.insert (tokens[6]);
+            }
         }
     }
+
+    active_op = *(active_ops.begin ());
 
     Logging::log_debug ("Current supported operations: ");
     for (const auto& op : active_ops) {
@@ -832,6 +839,8 @@ std::string CoreControlApplication::update_job_demands ()
             }
         }
     }
+
+    active_op = operation;
 
     return operation;
 }

@@ -43,6 +43,7 @@ namespace cheferd {
  * - job_previous_rates: container used for mapping a job's previous imposed rate.
  * - maximum_limit: defines the maximum limit of the system (e.g., IOPS, bandwidth).
  * - active_ops: current operations supported by the controller.
+ * - active_op: current main operation.
  * - m_active_local_controller_sessions: atomic value that marks the number of active local
  * controller sessions.
  * - m_pending_local_controller_sessions: atomic value that marks the number of pending local
@@ -72,6 +73,7 @@ private:
     std::unordered_map<std::string, long> job_previous_rates;
     long maximum_limit;
     std::unordered_set<std::string> active_ops;
+    std::string active_op;
     std::atomic<int> m_active_local_controller_sessions;
     std::atomic<int> m_pending_local_controller_sessions;
     std::atomic<int> m_active_data_plane_sessions;
