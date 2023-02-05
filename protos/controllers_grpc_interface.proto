@@ -21,7 +21,6 @@ option objc_class_prefix = "HLW";
 
 package controllers_grpc_interface;
 
-
 service GlobalToLocal{
   rpc LocalHandshake (LocalSimplifiedHandshakeRaw) returns (ACK) {}
   rpc StageHandshake (ControlOperation) returns (StageSimplifiedHandshakeRaw) {}
@@ -31,11 +30,9 @@ service GlobalToLocal{
   rpc CollectGlobalStatisticsAggregated (ControlOperation) returns (StatsGlobalMap) {}
 }
 
-
 message LocalSimplifiedHandshakeRaw {
   repeated string rules = 1;
 }
-
 
 message ControlOperation {
   int32 m_operation_id = 1; // ControlReceive identifier.
@@ -45,7 +42,6 @@ message ControlOperation {
   // HSK_CREATE_CHANNEL, HSK_CREATE_OBJECT, ...).
   int32 m_size = 4; // Size of the RAW object to receive.
 };
-
 
 message StageSimplifiedHandshakeRaw {
   string m_stage_name = 1;
@@ -65,10 +61,9 @@ message ACK {
   int32 m_message = 1;
 }
 
-
 message EnforcementRules {
   //<operation, ...>
-  map<string, EnforcementOpRules> operation_rules= 1;
+  map<string, EnforcementOpRules> operation_rules = 1;
 }
 
 message EnforcementOpRules {
@@ -77,15 +72,13 @@ message EnforcementOpRules {
   map<int64, int64> env_rates = 3;
 }
 
-
 message StatsGlobalMap {
-  map<string, StatsGlobal > gl_stats= 1;
+  map<string, StatsGlobal > gl_stats = 1;
 };
 
 message StatsGlobal {
   double m_metadata_total_rate = 8;
 };
-
 
 //////
 
@@ -95,7 +88,6 @@ service LocalToGlobal{
   rpc DisconnectStageToGlobal (StageInfoConnect) returns (ConnectReply) {}
 }
 
-// The request message containing the user's name.
 message ConnectRequest {
   string user_address = 1;
 }
@@ -107,7 +99,6 @@ message StageInfoConnect {
   string stage_user = 4;
 }
 
-// The response message containing the greetings
 message ConnectReply {
   string message = 1;
 }

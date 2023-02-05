@@ -1,5 +1,5 @@
 /**
- *   Copyright (c) 2020 INESC TEC.
+ *   Copyright (c) 2022 INESC TEC.
  **/
 
 #ifndef CHEFERD_STAGE_RESPONSE_HPP
@@ -12,12 +12,12 @@ namespace cheferd {
 /**
  * StageResponse class.
  * Base class for all responses from both data plane stages and local controllers.
+ * Currently, the StageResponse class contains the following variables:
+ * - response_type_: type of response (e.g., STAGE_HANDSHAKE,
+ * CREATE_ENF_RULE, COLLECT_GLOBAL_STATS, ...).
  */
 class StageResponse {
 public:
-    /**
-     * Type of response. (e.g., STAGE_HANDSHAKE, CREATE_ENF_RULE, COLLECT_GLOBAL_STATS, ...).
-     */
     int response_type_;
 
     /**
@@ -27,7 +27,7 @@ public:
 
     /**
      * StageResponse parameterized constructor.
-     * @param response_type Type of response
+     * @param response_type Type of response.
      */
     StageResponse (const int& response_type);
 
@@ -37,14 +37,14 @@ public:
     virtual ~StageResponse ();
 
     /**
-     * ResponseType: ...
-     * @return
+     * ResponseType: Get response's type.
+     * @return Type of response.
      */
     virtual int ResponseType () const;
 
     /**
-     * toString: ...
-     * @return
+     * toString: Converts response to string.
+     * @return Response in string format.
      */
     virtual std::string toString () const;
 };

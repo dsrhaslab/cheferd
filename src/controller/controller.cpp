@@ -1,12 +1,12 @@
 /**
- *   Written by Ricardo Macedo and João Paulo.
- *   Copyright (c) 2020 INESC TEC.
+ *   Copyright (c) 2022 INESC TEC.
  **/
 
 #include <cheferd/controller/controller.hpp>
 
 namespace cheferd {
 
+// Core Controller parameterized constructor.
 Controller::Controller (ControlType control_type,
     std::string& core_address,
     const uint64_t& cycle_sleep_time,
@@ -22,6 +22,7 @@ Controller::Controller (ControlType control_type,
         system_limit);
 }
 
+// Local Controller parameterized constructor.
 Controller::Controller (std::string& core_address,
     std::string& local_address,
     const uint64_t& cycle_sleep_time) :
@@ -35,10 +36,10 @@ Controller::Controller (std::string& core_address,
         option_default_control_application_sleep);
 }
 
-//    Controller default destructor.
+// Controller default destructor.
 Controller::~Controller () = default;
 
-//    RegisterHousekeepingRules call.
+// RegisterHousekeepingRules call. Processes housekeeping rules.
 void Controller::RegisterHousekeepingRules (const std::string& path)
 {
     Logging::log_info ("Register Housekeeping Rules.");
@@ -80,7 +81,7 @@ void Controller::RegisterHousekeepingRules (const std::string& path)
     }
 }
 
-//    SpawnControlApplication call.
+// SpawnControlApplication call. Starts the control application that orchestrates the system.
 void Controller::SpawnControlApplication ()
 {
     Logging::log_info ("Spawning Control Algorithm -- ");
@@ -88,7 +89,7 @@ void Controller::SpawnControlApplication ()
     control_application_thread_t.detach ();
 }
 
-//    SpawnSystemAdmin call.
+// SpawnSystemAdmin call. Spawns a thread that mimics the behavior of a SysAdmin.
 void Controller::SpawnSystemAdmin ()
 {
     Logging::log_info ("Spawning System Admin -- ");
@@ -97,16 +98,18 @@ void Controller::SpawnSystemAdmin ()
     system_admin_thread_t.detach ();
 }
 
-//    SpawnConnectionManager call.
+// SpawnConnectionManager call. Spawn the connection manager to start to accept connections.
 void Controller::SpawnConnectionManager ()
 {
     m_connection_manager->Start (m_control_application);
 }
 
+// StopController call. Stops the controller, including the connection manager and control
+// application.
 void Controller::StopController ()
 {
     m_connection_manager->Stop ();
-    m_control_application->stop_feedback_loop();
+    m_control_application->stop_feedback_loop ();
 }
 
 } // namespace cheferd

@@ -1,16 +1,9 @@
 /**
- *   Copyright (c) 2020 INESC TEC.
+ *   Copyright (c) 2022 INESC TEC.
  **/
 
 #include <cheferd/networking/paio_interface.hpp>
 #include <cheferd/utils/rules_file_parser.hpp>
-
-/**
- * TODO:
- *  - implement mark data plane stage ready
- *  - adjust rule-parser
- *  - adjust conversion of rules from string to structures
- */
 
 namespace cheferd {
 
@@ -20,8 +13,8 @@ PAIOInterface::PAIOInterface () = default;
 // PAIOInterface default destructor.
 PAIOInterface::~PAIOInterface () = default;
 
-// stage_handshake call. Submit a handshake request to identify the Data Plane Stage that has
-// established communication.
+// stage_handshake call. Handshake a data plane stage.
+// Submit a handshake request to collect data about the data plane stage.
 PStatus PAIOInterface::stage_handshake (int socket,
     ControlOperation* operation,
     StageSimplifiedHandshakeRaw& stage_info_obj)
@@ -37,17 +30,10 @@ PStatus PAIOInterface::stage_handshake (int socket,
 
     // verify total written bytes
     if (return_value != sizeof (struct ControlOperation)) {
-        Logging::log_error ("stage_handshake: Error while writing control operation ("
+        Logging::log_error (
+            "PAIOInterface: stage_handshake: Error while writing control operation ("
             + std::to_string (return_value) + ").");
         return PStatus::Error ();
-    } else {
-        std::cout << "stage_handshake: control operation submitted\n";
-
-        std::cout << "PaioInterface: ControlOperation: ";
-        std::cout << operation->m_operation_id << ", ";
-        std::cout << operation->m_operation_type << ", ";
-        std::cout << operation->m_operation_subtype << ", ";
-        std::cout << operation->m_size << "\n";
     }
 
     // read StageSimplifiedHandshakeRaw structure from socket
@@ -55,7 +41,7 @@ PStatus PAIOInterface::stage_handshake (int socket,
 
     // verify total bytes read
     if (return_value != sizeof (struct StageSimplifiedHandshakeRaw)) {
-        Logging::log_error ("stage_handshake: failed to receive handshake object ("
+        Logging::log_error ("PAIOInterface: stage_handshake: failed to receive handshake object ("
             + std::to_string (return_value) + ").");
         return PStatus::Error ();
     } else {
@@ -79,8 +65,7 @@ PStatus PAIOInterface::stage_handshake (int socket,
     }
 }
 
-// stage_handshake call. Submit a handshake request to identify the Data Plane Stage that has
-// established communication.
+// stage_handshake_address call. Informs a data plane stage about the new socket to connect to.
 PStatus PAIOInterface::stage_handshake_address (int socket, const std::string& rule, ACK& response)
 {
 
@@ -89,100 +74,40 @@ PStatus PAIOInterface::stage_handshake_address (int socket, const std::string& r
 
     StageHandshakeRaw handshake_object;
 
-    Logging::log_debug (tokens[1]);
-
-    // pre-send phase
-    // prepare ControlSend object
     strcpy (handshake_object.m_address, tokens[1].c_str ());
-    // std::string dd = "/tmp/tat_1_1000_12332.socket";
-    // strcpy(handshake_object.m_address, dd.c_str());
-    handshake_object.m_port = std::stoi (tokens[2]);
 
-    Logging::log_debug (handshake_object.m_address);
+    handshake_object.m_port = std::stoi (tokens[2]);
 
     // write ControlSend structure through socket
     ssize_t return_value = ::write (socket, &handshake_object, sizeof (struct StageHandshakeRaw));
 
     // verify total written bytes
     if (return_value != sizeof (struct StageHandshakeRaw)) {
-        Logging::log_error ("stage_handshake_address: Error while writing address:port ("
+        Logging::log_error (
+            "PAIOInterface: stage_handshake_address: Error while writing address:port ("
             + std::to_string (return_value) + ").");
         response.m_message = static_cast<int> (AckCode::error);
         return PStatus::Error ();
     } else {
-        std::cout << "stage_handshake_address: Data submitted\n";
-        std::cout << "PaioInterface: Data: ";
-        std::cout << handshake_object.m_address << ", ";
-        std::cout << handshake_object.m_port << "\n";
         response.m_message = static_cast<int> (AckCode::ok);
         return PStatus::OK ();
     }
 }
 
-PStatus PAIOInterface::mark_stage_ready (int socket,
-    ControlOperation* operation,
-    StageReadyRaw& stage_ready_obj,
-    ACK& response)
-{
-    // pre-send phase
-    // prepare ControlSend object
-    operation->m_operation_id = -1;
-    operation->m_operation_type = STAGE_READY;
-    operation->m_size = sizeof (struct StageReadyRaw);
-
-
-    // write ControlSend structure through socket
-    ssize_t return_value = ::write (socket, operation, sizeof (struct ControlOperation));
-
-    // verify total written bytes
-    if (return_value != sizeof (struct ControlOperation)) {
-        Logging::log_error ("mark_stage_ready: Error while writing control operation ("
-            + std::to_string (return_value) + ").");
-        return PStatus::Error ();
-    } else {
-        std::cout << "mark_stage_ready: control operation submitted\n";
-    }
-
-    // send phase
-    stage_ready_obj.m_mark_stage = true;
-    return_value = ::write (socket, &stage_ready_obj, sizeof (struct StageReadyRaw));
-    // verify total written bytes
-    if (return_value != sizeof (struct StageReadyRaw)) {
-        Logging::log_error ("mark_stage_ready (channel): Error while writing stage ready ("
-            + std::to_string (return_value) + ").");
-        return PStatus::Error ();
-    }
-
-    // receive phase
-    return_value = ::read (socket, &response, sizeof (struct ACK));
-    if (return_value <= 0 || response.m_message == static_cast<int> (AckCode::error)) {
-        Logging::log_error (
-            "mark_stage_ready: Error while reading ACK message from data plane stage ("
-            + std::to_string (return_value) + ").");
-        return PStatus::Error ();
-    } else if (response.m_message == static_cast<int> (AckCode::ok)) {
-        Logging::log_debug ("mark_stage_ready: ACK message received ("
-            + std::to_string (response.m_message) + ").");
-        return PStatus::OK ();
-    } else {
-        return PStatus::Error ();
-    }
-}
-
-// create_housekeeping_rule call. (...)
+// create_housekeeping_rule call. Creates a housekeeping rule at the data plane stage.
 PStatus PAIOInterface::create_housekeeping_rule (int socket,
     ControlOperation* operation,
     const std::string& rule,
     ACK& response)
 {
-    Logging::log_debug ("create_housekeeping_rule: " + rule);
+    Logging::log_debug ("PAIOInterface: create_housekeeping_rule: " + rule);
 
     // parsing phase
     std::vector<std::string> rule_tokens {};
     this->parse_rule (rule, &rule_tokens);
 
     if (rule_tokens.empty ()) {
-        Logging::log_error ("create_housekeeping_rule: empty rule.");
+        Logging::log_error ("PAIOInterface: create_housekeeping_rule: empty rule.");
         return PStatus::Error ();
     }
 
@@ -199,7 +124,6 @@ PStatus PAIOInterface::create_housekeeping_rule (int socket,
 
     switch (operation->m_operation_subtype) {
         case HSK_CREATE_CHANNEL: {
-            std::cout << "... HSK_CREATE_CHANNEL ...\n";
             operation->m_size = sizeof (struct HousekeepingCreateChannelRaw);
 
             // prepare HousekeepingCreateChannelRaw object to be sent
@@ -210,8 +134,8 @@ PStatus PAIOInterface::create_housekeeping_rule (int socket,
             return_value = ::write (socket, operation, sizeof (struct ControlOperation));
             // verify total written bytes
             if (return_value != sizeof (struct ControlOperation)) {
-                Logging::log_error (
-                    "create_housekeeping_rule (channel): Error while writing control operation ("
+                Logging::log_error ("PAIOInterface: create_housekeeping_rule (channel): Error "
+                                    "while writing control operation ("
                     + std::to_string (return_value) + ").");
                 return PStatus::Error ();
             }
@@ -223,8 +147,8 @@ PStatus PAIOInterface::create_housekeeping_rule (int socket,
 
             // verify total written bytes
             if (return_value != sizeof (struct HousekeepingCreateChannelRaw)) {
-                Logging::log_error (
-                    "create_housekeeping_rule (channel): Error while writing housekeeping rule ("
+                Logging::log_error ("PAIOInterface: create_housekeeping_rule (channel): Error "
+                                    "while writing housekeeping rule ("
                     + std::to_string (return_value) + ").");
                 return PStatus::Error ();
             }
@@ -233,7 +157,6 @@ PStatus PAIOInterface::create_housekeeping_rule (int socket,
         }
 
         case HSK_CREATE_OBJECT: {
-            std::cout << "... HSK_CREATE_OBJECT ...\n";
             operation->m_size = sizeof (struct HousekeepingCreateObjectRaw);
 
             // prepare HousekeepingCreateObjectRaw object to be sent
@@ -245,8 +168,8 @@ PStatus PAIOInterface::create_housekeeping_rule (int socket,
 
             // verify total written bytes
             if (return_value != sizeof (struct ControlOperation)) {
-                Logging::log_error (
-                    "create_housekeeping_rule (object): Error while writing control operation ("
+                Logging::log_error ("PAIOInterface: create_housekeeping_rule (object): Error while "
+                                    "writing control operation ("
                     + std::to_string (return_value) + ").");
                 return PStatus::Error ();
             }
@@ -258,8 +181,8 @@ PStatus PAIOInterface::create_housekeeping_rule (int socket,
 
             // verify total written bytes
             if (return_value != sizeof (struct HousekeepingCreateObjectRaw)) {
-                Logging::log_error (
-                    "create_housekeeping_rule (object): Error while writing houskeeeping rule ("
+                Logging::log_error ("PAIOInterface: create_housekeeping_rule (object): Error while "
+                                    "writing housekeeping rule ("
                     + std::to_string (return_value) + ").");
                 return PStatus::Error ();
             }
@@ -268,21 +191,19 @@ PStatus PAIOInterface::create_housekeeping_rule (int socket,
         }
 
         default:
-            Logging::log_error ("After parsing -- other rule");
+            Logging::log_error ("PAIOInterface: After parsing -- other rule");
             return PStatus::Error ();
     }
 
     // receive phase
     return_value = ::read (socket, &response, sizeof (struct ACK));
     if (return_value <= 0 || response.m_message == static_cast<int> (AckCode::error)) {
-        // FIXME: add error/pstatus to the ACK structure and send from the data plane to the
-        //  controller, in order to be validated here.
-        Logging::log_error (
-            "create_housekeeping_rule: Error while reading ACK message from data plane stage ("
+        Logging::log_error ("PAIOInterface: create_housekeeping_rule: Error while reading ACK "
+                            "message from data plane stage ("
             + std::to_string (return_value) + ").");
         return PStatus::Error ();
     } else if (response.m_message == static_cast<int> (AckCode::ok)) {
-        Logging::log_debug ("create_housekeeping_rule: ACK message received ("
+        Logging::log_debug ("PAIOInterface: create_housekeeping_rule: ACK message received ("
             + std::to_string (response.m_message) + ").");
         return PStatus::OK ();
     } else {
@@ -290,42 +211,36 @@ PStatus PAIOInterface::create_housekeeping_rule (int socket,
     }
 }
 
-// missing tests
-// ExecuteHousekeepingRules call. (...)
-PStatus PAIOInterface::ExecuteHousekeepingRules (int socket,
+// mark_stage_ready call. Mark data plane stage as ready.
+PStatus PAIOInterface::mark_stage_ready (int socket,
     ControlOperation* operation,
-    const std::string& rule,
+    StageReadyRaw& stage_ready_obj,
     ACK& response)
 {
-    Logging::log_debug ("ExecuteHousekeepingRules:: " + rule);
-
-    // prepare ControlSend object
-    operation->m_operation_id = -1; // fixme: update the identifier value
-    operation->m_operation_type = EXEC_HSK_RULES;
-    operation->m_size = sizeof (struct Execute);
-
     // pre-send phase
-    // write ControlSend object through socket
-    auto return_value = ::write (socket, operation, sizeof (struct ControlOperation));
+    // prepare ControlSend object
+    operation->m_operation_id = -1;
+    operation->m_operation_type = STAGE_READY;
+    operation->m_size = sizeof (struct StageReadyRaw);
+
+    // write ControlOperation structure through socket
+    ssize_t return_value = ::write (socket, operation, sizeof (struct ControlOperation));
 
     // verify total written bytes
     if (return_value != sizeof (struct ControlOperation)) {
-        Logging::log_error ("execute_housekeeping_rules: Error while writing control operation ("
+        Logging::log_error (
+            "PAIOInterface: mark_stage_ready: Error while writing control operation ("
             + std::to_string (return_value) + ").");
         return PStatus::Error ();
     }
 
     // send phase
-    // prepare Execute object to be sent
-    Execute execute_obj {};
-    execute_obj.execute_all = true;
-
-    // write Execute object through socket
-    return_value = ::write (socket, &execute_obj, sizeof (struct Execute));
-
+    stage_ready_obj.m_mark_stage = true;
+    return_value = ::write (socket, &stage_ready_obj, sizeof (struct StageReadyRaw));
     // verify total written bytes
-    if (return_value != sizeof (struct Execute)) {
-        Logging::log_error ("execute_housekeeping_rules: Error while writing Execute object ("
+    if (return_value != sizeof (struct StageReadyRaw)) {
+        Logging::log_error (
+            "PAIOInterface: mark_stage_ready (channel): Error while writing stage ready ("
             + std::to_string (return_value) + ").");
         return PStatus::Error ();
     }
@@ -333,11 +248,12 @@ PStatus PAIOInterface::ExecuteHousekeepingRules (int socket,
     // receive phase
     return_value = ::read (socket, &response, sizeof (struct ACK));
     if (return_value <= 0 || response.m_message == static_cast<int> (AckCode::error)) {
-        // FIXME: add error/pstatus to the ACK structure and send from the data plane to the
-        //  controller, in order to be validated here.
+        Logging::log_error ("PAIOInterface: mark_stage_ready: Error while reading ACK message from "
+                            "data plane stage ("
+            + std::to_string (return_value) + ").");
         return PStatus::Error ();
     } else if (response.m_message == static_cast<int> (AckCode::ok)) {
-        Logging::log_debug ("execute_housekeeping_rules: ACK message received ("
+        Logging::log_debug ("PAIOInterface: mark_stage_ready: ACK message received ("
             + std::to_string (response.m_message) + ").");
         return PStatus::OK ();
     } else {
@@ -345,18 +261,7 @@ PStatus PAIOInterface::ExecuteHousekeepingRules (int socket,
     }
 }
 
-// Missing actual implementation
-// create_differentiation_rule call. (...)
-PStatus PAIOInterface::create_differentiation_rule (int socket,
-    ControlOperation* operation,
-    const std::string& rule,
-    ACK& response)
-{
-    return PStatus::NotSupported ();
-}
-
-// missing tests
-// create_enforcement_rule call. (...)
+// create_enforcement_rule call. Creates an enforcement rule at the data plane stage.
 PStatus PAIOInterface::create_enforcement_rule (int socket,
     ControlOperation* operation,
     const std::string& rule,
@@ -364,7 +269,7 @@ PStatus PAIOInterface::create_enforcement_rule (int socket,
 {
     // validate if logging is enabled and log debug message
     if (Logging::is_debug_enabled ()) {
-        Logging::log_debug ("create_enforcement_rule: " + rule);
+        Logging::log_debug ("PAIOInterface: create_enforcement_rule: " + rule);
     }
 
     // parsing phase
@@ -372,14 +277,13 @@ PStatus PAIOInterface::create_enforcement_rule (int socket,
     this->parse_rule (rule, &rule_tokens);
 
     if (rule_tokens.empty ()) {
-        Logging::log_error ("create_enforcement_rule: empty rule.");
+        Logging::log_error ("PAIOInterface: create_enforcement_rule: empty rule.");
         return PStatus::Error ();
     }
 
-    // prepare ControlSend object
+    // prepare ControlOperation object
     operation->m_operation_id = 10; // fixme: update the identifier value
     operation->m_operation_type = CREATE_ENF_RULE;
-    // operation->m_operation_subtype = std::stoi (rule_tokens_t[0]);
     operation->m_size = sizeof (struct EnforcementRuleRaw);
 
     // prepare EnforcementRuleRaw object to be sent
@@ -391,7 +295,8 @@ PStatus PAIOInterface::create_enforcement_rule (int socket,
 
     // verify total written bytes
     if (return_value != sizeof (struct ControlOperation)) {
-        Logging::log_error ("create_enforcement_rule: Error while writing control operation ("
+        Logging::log_error (
+            "PAIOInterface: create_enforcement_rule: Error while writing control operation ("
             + std::to_string (return_value) + ").");
         return PStatus::Error ();
     }
@@ -401,8 +306,9 @@ PStatus PAIOInterface::create_enforcement_rule (int socket,
 
     // verify total written bytes
     if (return_value != sizeof (struct EnforcementRuleRaw)) {
-        Logging::log_error ("create_enforcement_rule: Error while writing enforcement rule object "
-                            "to the data plane stage ("
+        Logging::log_error (
+            "PAIOInterface: create_enforcement_rule: Error while writing enforcement rule object "
+            "to the data plane stage ("
             + std::to_string (return_value) + ").");
         return PStatus::Error ();
     }
@@ -410,14 +316,12 @@ PStatus PAIOInterface::create_enforcement_rule (int socket,
     // receive phase
     return_value = ::read (socket, &response, sizeof (struct ACK));
     if (return_value <= 0 || response.m_message == static_cast<int> (AckCode::error)) {
-        // FIXME: add error/pstatus to the ACK structure and send from the data plane to the
-        //  controller, in order to be validated here.
-        Logging::log_error (
-            "create_enforcement_rule: Error while reading ACK message from data plane stage ("
+        Logging::log_error ("PAIOInterface: create_enforcement_rule: Error while reading ACK "
+                            "message from data plane stage ("
             + std::to_string (return_value) + ").");
         return PStatus::Error ();
     } else if (response.m_message == static_cast<int> (AckCode::ok)) {
-        Logging::log_debug ("create_enforcement_rule: ACK message received ("
+        Logging::log_debug ("PAIOInterface: create_enforcement_rule: ACK message received ("
             + std::to_string (response.m_message) + ").");
         return PStatus::OK ();
     } else {
@@ -425,14 +329,13 @@ PStatus PAIOInterface::create_enforcement_rule (int socket,
     }
 }
 
-// missing actual implementation (this is a placeholder)
-// RemoveRule call. (...)
+// RemoveRule call. Remove a HousekeepingRule from a specific data plane stage.
 PStatus
 PAIOInterface::RemoveRule (int socket, ControlOperation* operation, int rule_id, ACK& response)
 {
     PStatus status = PStatus::Error ();
     // Pre-send Phase
-    // Prepare ControlSend object
+    // Prepare ControlOperation object
     operation->m_operation_id = -1;
     operation->m_size = sizeof (struct ControlOperation);
 
@@ -440,7 +343,7 @@ PAIOInterface::RemoveRule (int socket, ControlOperation* operation, int rule_id,
 
     // verify total written bytes
     if (return_value != sizeof (struct ControlOperation)) {
-        Logging::log_error ("remove_rule: Error while writing control operation ("
+        Logging::log_error ("PAIOInterface: remove_rule: Error while writing control operation ("
             + std::to_string (return_value) + ").");
         return PStatus::Error ();
     }
@@ -456,7 +359,6 @@ PAIOInterface::RemoveRule (int socket, ControlOperation* operation, int rule_id,
     // Receive Phase
     // Create the ControlResponse object to receive (as the response will be an ACK, we may only
     // receive this one)
-    // FIXME: this will be an ACK response.
     return_value = ::read (socket, &response, sizeof (struct ACK));
     if (return_value <= 0) {
         return PStatus::Error ();
@@ -470,20 +372,20 @@ PAIOInterface::RemoveRule (int socket, ControlOperation* operation, int rule_id,
     } else {
         status = PStatus::OK ();
         // Logging::DEBUG("Process Phase::REMOVE_RULE::" + std::to_string(response.response));
-        fprintf (stdout, "Process Phase::REMOVE_RULE::%d\n", response.m_message);
+        fprintf (stdout, "PAIOInterface: Process Phase::REMOVE_RULE::%d\n", response.m_message);
     }
 
     return status;
 }
 
-// missing actual implementation (this is a placeholder) collect_statistics call. (...)
+// collect_statistics csll. Get the statistics of a current data plane stage.
 PStatus PAIOInterface::collect_statistics (int socket, ControlOperation* operation)
 {
-    Logging::log_error ("PAIOInterface::Get Stats not implemented.");
+    Logging::log_error ("PAIOInterface: Get Stats not implemented.");
     return PStatus::NotSupported ();
 }
 
-//    CollectGlobalStatistics call. (...)
+// collect_statistics call. Get the statistics of a current data plane stage.
 PStatus PAIOInterface::collect_global_statistics (int socket,
     ControlOperation* operation,
     StatsGlobalRaw& stats_tf_object)
@@ -503,7 +405,8 @@ PStatus PAIOInterface::collect_global_statistics (int socket,
 
     // verify total written bytes
     if (return_value != sizeof (struct ControlOperation)) {
-        Logging::log_error ("collect_global_statistics: Error while writing control operation ("
+        Logging::log_error (
+            "PAIOInterface: collect_global_statistics: Error while writing control operation ("
             + std::to_string (return_value) + ").");
         return PStatus::Error ();
     }
@@ -514,8 +417,9 @@ PStatus PAIOInterface::collect_global_statistics (int socket,
 
     // verify total bytes read
     if (return_value != sizeof (struct StatsGlobalRaw)) {
-        Logging::log_error ("collect_global_statistics: Error while reading StatsGlobalRaw object "
-                            "from data plane stage ("
+        Logging::log_error (
+            "PAIOInterface: collect_global_statistics: Error while reading StatsGlobalRaw object "
+            "from data plane stage ("
             + std::to_string (return_value) + ").");
         return PStatus::Error ();
     } else {
@@ -530,6 +434,11 @@ PStatus PAIOInterface::collect_global_statistics (int socket,
     }
 }
 
+////////////////////////////////////////////
+//////////// Auxiliary Functions ///////////
+////////////////////////////////////////////
+
+// parse_rule call: Parses a rule into tokens.
 void PAIOInterface::parse_rule (const std::string& rule, std::vector<std::string>* tokens)
 {
     size_t start;
@@ -541,6 +450,7 @@ void PAIOInterface::parse_rule (const std::string& rule, std::vector<std::string
     }
 }
 
+// fill_create_channel_rule call. Fill HousekeepingCreateChannelRaw with tokens data.
 void PAIOInterface::fill_create_channel_rule (HousekeepingCreateChannelRaw* create_channel,
     const std::vector<std::string>& tokens)
 {
@@ -556,6 +466,7 @@ void PAIOInterface::fill_create_channel_rule (HousekeepingCreateChannelRaw* crea
         = RulesFileParser::convert_differentiation_definitions (tokens[4], tokens[7]);
 }
 
+// fill_create_object_rule call. Fill HousekeepingCreateObjectRaw with tokens data.
 void PAIOInterface::fill_create_object_rule (HousekeepingCreateObjectRaw* create_object,
     const std::vector<std::string>& tokens)
 {
@@ -575,6 +486,7 @@ void PAIOInterface::fill_create_object_rule (HousekeepingCreateObjectRaw* create
     create_object->m_property_second = std::stol (tokens[10]);
 }
 
+// fill_enforcement_rule call. Fill EnforcementRuleRaw with tokens data.
 void PAIOInterface::fill_enforcement_rule (EnforcementRuleRaw* enf_object,
     const std::vector<std::string>& tokens)
 {

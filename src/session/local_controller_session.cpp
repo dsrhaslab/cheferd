@@ -1,5 +1,5 @@
 /**
- *   Copyright (c) 2020 INESC TEC.
+ *   Copyright (c) 2022 INESC TEC.
  **/
 
 #include "cheferd/networking/stage_response/stage_response_stat.hpp"
@@ -8,7 +8,7 @@
 
 namespace cheferd {
 
-// LocalControllerSession default constructor.
+// LocalControllerSession parameterized constructor.
 LocalControllerSession::LocalControllerSession (const std::string& user_address) :
     session_id_ { 0 },
     interface_ { user_address }
@@ -23,8 +23,7 @@ LocalControllerSession::LocalControllerSession (long id, const std::string& user
 // LocalControllerSession default destructor.
 LocalControllerSession::~LocalControllerSession () = default;
 
-// StartSession() call. Start session between the controller and the data plane
-// stage.
+// StartSession call. Start session execution.
 void LocalControllerSession::StartSession (const std::string& user_address)
 {
     Logging::log_debug ("LocalControllerSession::StartSession");
@@ -44,7 +43,7 @@ void LocalControllerSession::StartSession (const std::string& user_address)
     }
 }
 
-// SendRule call. Submit rule to the data plane stage.
+// SendRule call. Handle the rule to be submitted to the local controller.
 PStatus LocalControllerSession::SendRule (const std::string& user_address,
     const std::string& rule,
     ControlOperation* operation)
@@ -52,7 +51,6 @@ PStatus LocalControllerSession::SendRule (const std::string& user_address,
     // parse rule
     if (!rule.empty ()) {
         std::string token = rule.substr (0, rule.find ('|'));
-        // std::cout << "Token: " << token << "\n";
         operation->m_operation_type = std::stoi (token);
     }
 
@@ -137,14 +135,12 @@ PStatus LocalControllerSession::SendRule (const std::string& user_address,
 
                     if (status.isOk ()) {
                         // enqueue response of data plane stage from collect_tensorflow_statistics
-                        // request
                         EnqueueResponseInCompletionQueue (
                             std::make_unique<StageResponseStats> (COLLECT_GLOBAL_STATS,
                                 stats_tf_objects));
 
                     } else {
                         // enqueue response of data plane stage from collect_tensorflow_statistics
-                        // request
                         EnqueueResponseInCompletionQueue (
                             std::make_unique<StageResponseStats> (COLLECT_GLOBAL_STATS,
                                 stats_tf_objects));
@@ -164,14 +160,12 @@ PStatus LocalControllerSession::SendRule (const std::string& user_address,
 
                     if (status.isOk ()) {
                         // enqueue response of data plane stage from collect_tensorflow_statistics
-                        // request
                         EnqueueResponseInCompletionQueue (
                             std::make_unique<StageResponseStats> (COLLECT_GLOBAL_STATS_AGGREGATED,
                                 stats_tf_objects));
 
                     } else {
                         // enqueue response of data plane stage from collect_tensorflow_statistics
-                        // request
                         EnqueueResponseInCompletionQueue (
                             std::make_unique<StageResponseStats> (COLLECT_GLOBAL_STATS_AGGREGATED,
                                 stats_tf_objects));
@@ -180,28 +174,29 @@ PStatus LocalControllerSession::SendRule (const std::string& user_address,
                 }
 
                 default:
-                    Logging::log_error ("After parsing -- other rule");
+                    Logging::log_error ("LocalControllerSession: After parsing -- other rule");
                     return PStatus::Error ();
             }
             break;
         }
         default:
             status = PStatus::NotSupported ();
-            Logging::log_error ("PAI/O Interface:.SendRule -- rule not supported.");
+            Logging::log_error ("LocalControllerSession: SendRule -- rule not supported.");
             break;
     }
 
-    //        std::cout << "Object removed ...\n";
     return status;
 }
 
+// RemoveSession call. Stop session execution.
 void LocalControllerSession::RemoveSession ()
 {
     working_session_ = false;
     EnqueueRuleInSubmissionQueue ("");
 }
 
-// EnqueueRuleInSubmissionQueue call. Enqueue rule in the submission_queue.
+// EnqueueRuleInSubmissionQueue call. Enqueue rule in the submission_queue_ in
+// string-based format.
 void LocalControllerSession::EnqueueRuleInSubmissionQueue (const std::string& rule)
 {
     std::unique_lock<std::mutex> lock_t { submission_queue_lock_ };
@@ -209,15 +204,16 @@ void LocalControllerSession::EnqueueRuleInSubmissionQueue (const std::string& ru
     submission_queue_condition_.notify_one ();
 }
 
-// Missing: add wait_for and cv_status to exit the condition when we need to terminate the
-//  execution ... DequeueRuleFromSubmissionQueue call. Dequeue rule from the submission_queue.
+// DequeueRuleFromSubmissionQueue call. Dequeue rule from the submission_queue_
+// in string-based format.
 PStatus LocalControllerSession::DequeueRuleFromSubmissionQueue (std::string& rule)
 {
     std::unique_lock<std::mutex> lock_t { submission_queue_lock_ };
     PStatus status_t = PStatus::Error ();
 
     while (working_session_.load () && submission_queue_.empty ()) {
-        submission_queue_condition_.wait (lock_t);}
+        submission_queue_condition_.wait (lock_t);
+    }
 
     if (working_session_.load ()) {
         rule = submission_queue_.front ();
@@ -228,8 +224,8 @@ PStatus LocalControllerSession::DequeueRuleFromSubmissionQueue (std::string& rul
     return status_t;
 }
 
-// Missing: probably some marshaling and unmarshaling needs to be done in this method
-//  EnqueueResponseInCompletionQueue call. Enqueue response in the completion_queue.
+// EnqueueResponseInCompletionQueue call. Enqueue response in the completion_queue_
+// in StageResponse format.
 void LocalControllerSession::EnqueueResponseInCompletionQueue (
     std::unique_ptr<StageResponse> response_object)
 {
@@ -238,8 +234,8 @@ void LocalControllerSession::EnqueueResponseInCompletionQueue (
     completion_queue_condition_.notify_one ();
 }
 
-// Missing: add wait_for and cv_status to exit the condition when we need to terminate the execution
-//  DequeueResponseFromCompletionQueue call. Dequeue response from the completion_queue.
+// DequeueResponseFromCompletionQueue call. Dequeue response from the
+// completion_queue_ in StageResponse format.
 std::unique_ptr<StageResponse> LocalControllerSession::DequeueResponseFromCompletionQueue ()
 {
 
@@ -255,13 +251,13 @@ std::unique_ptr<StageResponse> LocalControllerSession::DequeueResponseFromComple
     return response_t;
 }
 
-//    GetSubmissionQueueSize call. Return the size of the submission_queue.
+// getSubmissionQueueSize call. Get the total size of the submission_queue.
 int LocalControllerSession::getSubmissionQueueSize ()
 {
     return submission_queue_.size ();
 }
 
-//    SubmitRule call. Submit rules to the Session.
+// SubmitRule call. Submit rules to the Session.
 PStatus LocalControllerSession::SubmitRule (const std::string& submission_rule)
 {
     PStatus status_t = PStatus::Error ();
@@ -272,12 +268,13 @@ PStatus LocalControllerSession::SubmitRule (const std::string& submission_rule)
     return status_t;
 }
 
-//    GetResult call. Get results from the Session.
+// GetResult call. Pop result objects (StageResponse) from the Session.
 std::unique_ptr<StageResponse> LocalControllerSession::GetResult ()
 {
     return DequeueResponseFromCompletionQueue ();
 }
 
+// SessionIdentifier call. Get session identifier.
 long LocalControllerSession::SessionIdentifier () const
 {
     return session_id_;

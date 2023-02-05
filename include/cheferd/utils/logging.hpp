@@ -1,6 +1,5 @@
 /**
- *   Written by Ricardo Macedo.
- *   Copyright (c) 2020 INESC TEC.
+ *   Copyright (c) 2022 INESC TEC.
  **/
 
 #ifndef CHEFERD_LOGGING_HPP
@@ -19,14 +18,12 @@ namespace cheferd {
  * of the PAI/O data plane stage. Currently, the class supports log messages of
  * INFO, ERROR, and DEBUG qualifiers. Log messages can also be written to stdout
  * or file.
+ * Currently, the Logging class contains the following variables:
+ * - debug_enabled_: bool that determines if debug is enabled.
  */
 class Logging {
 
 private:
-    std::string logger_name_;
-    std::string log_file_path_;
-    std::shared_ptr<spdlog::logger> logger_;
-
     /**
      * Enable logging debug messages.
      */
@@ -41,10 +38,8 @@ public:
     Logging ();
 
     /**
-     * Logging parameterized constructor. If @param debug is true, the logging
-     * mode is set to debug.
-     * @param debug boolean value that defines if the debug is enabled or
-     * disabled.
+     * Logging parameterized constructor.
+     * @param debug Boolean value that defines if the debug is enabled or disabled.
      */
     explicit Logging (bool debug);
 
@@ -73,8 +68,7 @@ public:
 
     /**
      * is_debug_enabled: Validate if debug messages are enabled (debug_enabled_
-     * instance). This function is to be used by the methods that are called the
-     * most, such as SouthboundInterface calls, Agent and Core calls, etc.
+     * instance).
      */
     static bool is_debug_enabled ();
 };

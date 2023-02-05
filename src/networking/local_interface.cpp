@@ -1,18 +1,13 @@
 /**
- *   Copyright (c) 2020 INESC TEC.
+ *   Copyright (c) 2022 INESC TEC.
  **/
 
 #include <cheferd/networking/local_interface.hpp>
 #include <cheferd/utils/rules_file_parser.hpp>
 
-/**
- */
-
 namespace cheferd {
 
-// LocalInterface default constructor.
-// LocalInterface::LocalInterface () = default;
-
+// LocalInterface parameterized constructor.
 LocalInterface::LocalInterface (const std::string& user_address) :
     stub_ (GlobalToLocal::NewStub (
         grpc::CreateChannel (user_address, grpc::InsecureChannelCredentials ())))
@@ -21,16 +16,13 @@ LocalInterface::LocalInterface (const std::string& user_address) :
 // LocalInterface default destructor.
 LocalInterface::~LocalInterface () = default;
 
-// stage_handshake call. Submit a handshake request to identify the Data Plane Stage that has
-// established communication.
+// local_handshake call: Performs a handshake with the local controller. Informs local controller
+// of the housekeeping rules that should be imposed at the data plane stages.
 PStatus LocalInterface::local_handshake (const std::string& user_address,
     ControlOperation* operation,
     const std::string& rule,
     ACK& response)
 {
-    // pre-send phase
-    // prepare ControlSend object
-
     controllers_grpc_interface::ACK reply;
 
     controllers_grpc_interface::ControlOperation operation1;
@@ -51,33 +43,23 @@ PStatus LocalInterface::local_handshake (const std::string& user_address,
     Status status = stub_->LocalHandshake (&context, housekeeping_rules, &reply);
 
     if (!status.ok ()) {
-        Logging::log_error ("stage_handshake: Error while handshake control operation ("
+        Logging::log_error (
+            "LocalInterface: stage_handshake: Error while handshake control operation ("
             + status.error_message () + ").");
         return PStatus::Error ();
     } else {
-        std::cout << "stage_handshake: control operation submitted\n";
-
-        std::cout << "LocalInterface: ControlOperation: ";
-        std::cout << operation->m_operation_id << ", ";
-        std::cout << operation->m_operation_type << ", ";
-        std::cout << operation->m_operation_subtype << ", ";
-        std::cout << operation->m_size << "\n";
-
         response.m_message = reply.m_message ();
 
         return PStatus::OK ();
     }
 }
 
-// stage_handshake call. Submit a handshake request to identify the Data Plane Stage that has
-// established communication.
+// stage_handshake call. Handshake a data plane stage.
+// Submit a handshake request to collect data about the data plane stage.
 PStatus LocalInterface::stage_handshake (const std::string& user_address,
     ControlOperation* operation,
     StageSimplifiedHandshakeRaw& stage_info_obj)
 {
-    // pre-send phase
-    // prepare ControlSend object
-
     operation->m_operation_id = -1;
     operation->m_operation_type = STAGE_HANDSHAKE;
     operation->m_size = sizeof (struct StageSimplifiedHandshakeRaw);
@@ -98,18 +80,11 @@ PStatus LocalInterface::stage_handshake (const std::string& user_address,
     Status status = stub_->StageHandshake (&context, operation1, &reply);
 
     if (!status.ok ()) {
-        Logging::log_error ("stage_handshake: Error while handshake control operation ("
+        Logging::log_error (
+            "LocalInterface: stage_handshake: Error while handshake control operation ("
             + status.error_message () + ").");
         return PStatus::Error ();
     } else {
-        std::cout << "stage_handshake: control operation submitted\n";
-
-        std::cout << "LocalInterface: ControlOperation: ";
-        std::cout << operation->m_operation_id << ", ";
-        std::cout << operation->m_operation_type << ", ";
-        std::cout << operation->m_operation_subtype << ", ";
-        std::cout << operation->m_size << "\n";
-
         strcpy (stage_info_obj.m_stage_name, reply.m_stage_name ().c_str ());
         strcpy (stage_info_obj.m_stage_env, reply.m_stage_env ().c_str ());
         stage_info_obj.m_pid = reply.m_pid ();
@@ -131,12 +106,12 @@ PStatus LocalInterface::stage_handshake (const std::string& user_address,
     }
 }
 
+// mark_stage_ready call. Mark data plane stage as ready.
 PStatus LocalInterface::mark_stage_ready (const std::string& user_address,
     ControlOperation* operation,
     const std::string& rule,
     ACK& response)
 {
-
     controllers_grpc_interface::ACK reply;
 
     // Context for the client. It could be used to convey extra information to
@@ -156,11 +131,12 @@ PStatus LocalInterface::mark_stage_ready (const std::string& user_address,
     response.m_message = reply.m_message ();
 
     if (!status.ok ()) {
-        Logging::log_error ("mark_stage_ready (channel): Error while writing stage ready ("
+        Logging::log_error (
+            "LocalInterface: mark_stage_ready (channel): Error while writing stage ready ("
             + status.error_message () + ").");
         return PStatus::Error ();
     } else if (reply.m_message () == static_cast<int> (AckCode::ok)) {
-        Logging::log_debug ("mark_stage_ready: ACK message received ("
+        Logging::log_debug ("LocalInterface: mark_stage_ready: ACK message received ("
             + std::to_string (response.m_message) + ").");
         return PStatus::OK ();
     } else {
@@ -168,8 +144,8 @@ PStatus LocalInterface::mark_stage_ready (const std::string& user_address,
     }
 }
 
-// missing tests
-// create_enforcement_rule call. (...)
+// create_enforcement_rule call. Submit enforcement rules to the local controller pass to its
+// data plane stages.
 PStatus LocalInterface::create_enforcement_rule (const std::string& user_address,
     ControlOperation* operation,
     const std::string& rule,
@@ -177,7 +153,7 @@ PStatus LocalInterface::create_enforcement_rule (const std::string& user_address
 {
     // validate if logging is enabled and log debug message
     if (Logging::is_debug_enabled ()) {
-        Logging::log_debug ("create_enforcement_rule: " + rule);
+        Logging::log_debug ("LocalInterface: create_enforcement_rule: " + rule);
     }
 
     size_t start0;
@@ -242,12 +218,13 @@ PStatus LocalInterface::create_enforcement_rule (const std::string& user_address
 
     response.m_message = reply.m_message ();
     if (!status.ok ()) {
-        Logging::log_error ("create_enforcement_rule: Error while writing enforcement rule object "
-                            "to the local controler ("
+        Logging::log_error (
+            "LocalInterface: create_enforcement_rule: Error while writing enforcement rule object "
+            "to the local controler ("
             + status.error_message () + ").");
         return PStatus::Error ();
     } else if (reply.m_message () == static_cast<int> (AckCode::ok)) {
-        Logging::log_debug ("create_enforcement_rule: ACK message received ("
+        Logging::log_debug ("LocalInterface: create_enforcement_rule: ACK message received ("
             + std::to_string (response.m_message) + ").");
         return PStatus::OK ();
     } else {
@@ -255,7 +232,7 @@ PStatus LocalInterface::create_enforcement_rule (const std::string& user_address
     }
 }
 
-//    CollectStatisticsTF call. (...)
+// collect_global_statistics call. Collect statistics from data plane stages.
 PStatus LocalInterface::collect_global_statistics (const std::string& user_address,
     ControlOperation* operation,
     std::unique_ptr<std::unordered_map<std::string, std::unique_ptr<StageResponse>>>&
@@ -272,7 +249,8 @@ PStatus LocalInterface::collect_global_statistics (const std::string& user_addre
     Status status = stub_->CollectGlobalStatistics (&context, operation1, &reply);
 
     if (!status.ok ()) {
-        Logging::log_error ("collect_tensorflow_statistics: Error while writing control operation ("
+        Logging::log_error (
+            "LocalInterface: collect_tensorflow_statistics: Error while writing control operation ("
             + status.error_message () + ").");
         return PStatus::Error ();
     } else {
@@ -287,7 +265,7 @@ PStatus LocalInterface::collect_global_statistics (const std::string& user_addre
     }
 }
 
-//    CollectStatisticsTF call. (...)
+// collect_global_statistics_aggregated call. Collect aggregated statistics from data plane stages.
 PStatus LocalInterface::collect_global_statistics_aggregated (const std::string& user_address,
     ControlOperation* operation,
     std::unique_ptr<std::unordered_map<std::string, std::unique_ptr<StageResponse>>>&
@@ -304,7 +282,8 @@ PStatus LocalInterface::collect_global_statistics_aggregated (const std::string&
     Status status = stub_->CollectGlobalStatistics (&context, operation1, &reply);
 
     if (!status.ok ()) {
-        Logging::log_error ("collect_tensorflow_statistics: Error while writing control operation ("
+        Logging::log_error (
+            "LocalInterface: collect_tensorflow_statistics: Error while writing control operation ("
             + status.error_message () + ").");
         return PStatus::Error ();
     } else {
@@ -319,6 +298,11 @@ PStatus LocalInterface::collect_global_statistics_aggregated (const std::string&
     }
 }
 
+////////////////////////////////////////////
+//////////// Auxiliary Functions ///////////
+////////////////////////////////////////////
+
+// parse_rule call. Parse a rule into tokens using char c as delimiter.
 void LocalInterface::parse_rule (const std::string& rule,
     std::vector<std::string>* tokens,
     const char c)
@@ -332,6 +316,7 @@ void LocalInterface::parse_rule (const std::string& rule,
     }
 }
 
+// fill_create_channel_rule call. Fill LocalSimplifiedHandshakeRaw with rule data.
 void LocalInterface::fill_housekeeping_rules_grpc (
     controllers_grpc_interface::LocalSimplifiedHandshakeRaw* housekeeping_rules,
     const std::string& rule)

@@ -1,6 +1,5 @@
 /**
- *   Written by Ricardo Macedo.
- *   Copyright (c) 2020 INESC TEC.
+ *   Copyright (c) 2022 INESC TEC.
  **/
 
 #include <cheferd/session/handshake_session.hpp>
@@ -18,12 +17,10 @@ HandshakeSession::HandshakeSession (long id) : socket_id_ { id }, interface_ {}
 // HandshakeSession default destructor.
 HandshakeSession::~HandshakeSession () = default;
 
-// StartSession() call. Start session between the controller and the data plane
-// stage.
+// StartSession call. Start session execution.
 void HandshakeSession::StartSession ()
 {
-
-    Logging::log_debug ("HandshakeSession :: " + std::to_string (getSubmissionQueueSize ()));
+    Logging::log_debug ("HandshakeSession: " + std::to_string (getSubmissionQueueSize ()));
 
     PStatus status;
     ControlOperation operation {};
@@ -46,7 +43,7 @@ void HandshakeSession::StartSession ()
     }
 }
 
-// SendRule call. Submit rule to the data plane stage.
+// SendRule call. Handle the rule to be submitted to the data plane stage.
 PStatus
 HandshakeSession::SendRule (int socket, const std::string& rule, ControlOperation* operation)
 {
@@ -86,49 +83,39 @@ HandshakeSession::SendRule (int socket, const std::string& rule, ControlOperatio
 
         default:
             status = PStatus::NotSupported ();
-            Logging::log_error ("PAI/O Interface:.SendRule -- rule not supported.");
+            Logging::log_error ("HandshakeSession:.SendRule -- rule not supported.");
             break;
     }
 
-    //        std::cout << "Object removed ...\n";
     return status;
 }
 
+// RemoveSession call. Stop session execution.
 void HandshakeSession::RemoveSession ()
 {
     working_session_ = false;
     EnqueueRuleInSubmissionQueue ("");
 }
 
-// EnqueueRuleInSubmissionQueue call. Enqueue rule in the submission_queue.
+// EnqueueRuleInSubmissionQueue call. Enqueue rule in the submission_queue_ in
+// string-based format.
 void HandshakeSession::EnqueueRuleInSubmissionQueue (const std::string& rule)
 {
-    // Logging::log_debug("DataPlaneSession :: Enqueueue to dequeue");
-
     std::unique_lock<std::mutex> lock_t { submission_queue_lock_ };
     submission_queue_.emplace (rule);
     submission_queue_condition_.notify_one ();
-
-    // Logging::log_debug("DataPlaneSession :: Enqueueue to dequeue2");
 }
 
-// Missing: add wait_for and cv_status to exit the condition when we need to terminate the
-//  execution ... DequeueRuleFromSubmissionQueue call. Dequeue rule from the submission_queue.
+// DequeueRuleFromSubmissionQueue call. Dequeue rule from the submission_queue_
+// in string-based format.
 PStatus HandshakeSession::DequeueRuleFromSubmissionQueue (std::string& rule)
 {
     std::unique_lock<std::mutex> lock_t { submission_queue_lock_ };
     PStatus status_t = PStatus::Error ();
 
-    // Logging::log_debug("DataPlaneSession :: 1Dequeueue to dequeue");
-
     while (working_session_.load () && submission_queue_.empty ()) {
-        // Logging::log_debug("DataPlaneSession :: 2Dequeueue to dequeue");
-
         submission_queue_condition_.wait (lock_t);
-        // Logging::log_debug("DataPlaneSession :: 3Dequeueue to dequeue");
     }
-
-    // Logging::log_debug("DataPlaneSession :: 4Dequeueue to dequeue");
 
     if (working_session_.load ()) {
         // Logging::log_debug("DataPlaneSession :: 5Dequeueue to dequeue");
@@ -140,8 +127,8 @@ PStatus HandshakeSession::DequeueRuleFromSubmissionQueue (std::string& rule)
     return status_t;
 }
 
-// Missing: probably some marshaling and unmarshaling needs to be done in this method
-//  EnqueueResponseInCompletionQueue call. Enqueue response in the completion_queue.
+// EnqueueResponseInCompletionQueue call. Enqueue response in the completion_queue_
+// in StageResponse format.
 void HandshakeSession::EnqueueResponseInCompletionQueue (
     std::unique_ptr<StageResponse> response_object)
 {
@@ -150,8 +137,8 @@ void HandshakeSession::EnqueueResponseInCompletionQueue (
     completion_queue_condition_.notify_one ();
 }
 
-// Missing: add wait_for and cv_status to exit the condition when we need to terminate the execution
-//  DequeueResponseFromCompletionQueue call. Dequeue response from the completion_queue.
+// DequeueResponseFromCompletionQueue call. Dequeue response from the
+// completion_queue_ in StageResponse format.
 std::unique_ptr<StageResponse> HandshakeSession::DequeueResponseFromCompletionQueue ()
 {
 
@@ -167,13 +154,13 @@ std::unique_ptr<StageResponse> HandshakeSession::DequeueResponseFromCompletionQu
     return response_t;
 }
 
-//    GetSubmissionQueueSize call. Return the size of the submission_queue.
+// getSubmissionQueueSize call. Get the total size of the submission_queue.
 int HandshakeSession::getSubmissionQueueSize ()
 {
     return submission_queue_.size ();
 }
 
-//    SubmitRule call. Submit rules to the Session.
+// SubmitRule call. Submit rules to the Session.
 PStatus HandshakeSession::SubmitRule (const std::string& submission_rule)
 {
     PStatus status_t = PStatus::Error ();
@@ -184,12 +171,13 @@ PStatus HandshakeSession::SubmitRule (const std::string& submission_rule)
     return status_t;
 }
 
-//    GetResult call. Get results from the Session.
+// GetResult call. Pop result objects (StageResponse) from the Session.
 std::unique_ptr<StageResponse> HandshakeSession::GetResult ()
 {
     return DequeueResponseFromCompletionQueue ();
 }
 
+// SessionIdentifier call. Get session identifier.
 long HandshakeSession::SessionIdentifier () const
 {
     return socket_id_;

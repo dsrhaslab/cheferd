@@ -1,5 +1,6 @@
-//
-//
+/**
+ *   Copyright (c) 2022 INESC TEC.
+ **/
 
 #include "cheferd/utils/config_file_parser.hpp"
 
@@ -8,7 +9,7 @@ namespace cheferd {
 // ConfigFileParser default constructor.
 ConfigFileParser::ConfigFileParser ()
 {
-    Logging::log_debug ("RulesFileParser default constructor.");
+    Logging::log_debug ("ConfigFileParser default constructor.");
 }
 
 // ConfigFileParser default destructor.
@@ -17,6 +18,8 @@ ConfigFileParser::~ConfigFileParser ()
     Logging::log_debug ("ConfigFileParser default destructor.");
 }
 
+// select_default_housekeeping_rule call. Selects default housekeeping file if not defined
+// in config file.
 void ConfigFileParser::select_default_housekeeping_rule (ControlType control_type)
 {
 
@@ -38,6 +41,7 @@ void ConfigFileParser::select_default_housekeeping_rule (ControlType control_typ
     }
 }
 
+// select_control_type call. Selects control type from configuration file information.
 void ConfigFileParser::select_control_type (YAML::Node root_node, int control)
 {
 
@@ -61,6 +65,7 @@ void ConfigFileParser::select_control_type (YAML::Node root_node, int control)
     }
 }
 
+// process_core_controller_config call. Process core controller configuration.
 void ConfigFileParser::process_core_controller_config (YAML::Node root_node)
 {
     controller_type = ControllerType::CORE;
@@ -93,6 +98,7 @@ void ConfigFileParser::process_core_controller_config (YAML::Node root_node)
     }
 }
 
+// process_local_controller_config call. Process local controller configuration.
 void ConfigFileParser::process_local_controller_config (YAML::Node root_node)
 {
     controller_type = ControllerType::LOCAL;
@@ -110,6 +116,7 @@ void ConfigFileParser::process_local_controller_config (YAML::Node root_node)
     }
 }
 
+// process_config_file call. Process configuration file.
 void ConfigFileParser::process_config_file (const std::string& path)
 {
 

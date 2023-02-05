@@ -1,6 +1,5 @@
 /**
- *   Written by Ricardo Macedo.
- *   Copyright (c) 2020 INESC TEC.
+ *   Copyright (c) 2022 INESC TEC.
  **/
 
 #ifndef CHEFERD_INTERFACE_DEFINITIONS_HPP
@@ -14,7 +13,6 @@
 
 namespace cheferd {
 
-// TODO: remove these macros; define through an enum class
 #define STAGE_HANDSHAKE        0
 #define STAGE_READY            1
 #define COLLECT_STATS          2
@@ -27,33 +25,12 @@ namespace cheferd {
 
 #define LOCAL_HANDSHAKE      11
 #define STAGE_HANDSHAKE_INFO 12
-
 #define COLLECT_ENTITY_STATS 14
 
-// TODO: remove these macros; instead of defines use the HousekeepingOperation enum class
-// HousekeepingRules: create definitions
-// #define HSK_CREATE_UNIT    1
 #define HSK_CREATE_CHANNEL              1
 #define HSK_CREATE_OBJECT               2
 #define COLLECT_GLOBAL_STATS            5
 #define COLLECT_GLOBAL_STATS_AGGREGATED 6
-
-#define NO_OP 0
-
-// #define HSK_ASSIGN 4
-#define HSK_RASSIG 5 // probably remove this
-#define HSK_REMOVE 6
-#define HSK_UPDATE 7
-
-// TODO: remove these macros; define through an enum class
-// Enforcement tags (temporary)
-#define ENF_INIT       1 // DRL object initialization
-#define ENF_RATE       2 // set DRL rate
-#define ENF_MAX_RATE   3 // set DRL maximum rate limit
-#define ENF_REF_WINDOW 4 // set DRL refill window (period)
-#define ENF_PREEMPT    5 // set DRL preempt operation
-#define ENF_NONE       0
-
 
 /**
  * ControlOperation structure.
@@ -64,7 +41,6 @@ namespace cheferd {
  *  - m_operation-subtype: defines the subtype of the operation to be received (create channel,
  *  create object, ...);
  *  - m_size: defines the size of the object to be received.
- * TODO: create dedicated class.
  */
 struct ControlOperation {
     int m_operation_id { -1 };
@@ -76,7 +52,6 @@ struct ControlOperation {
 /**
  * ControlResponse structure.
  * Defines the metadata for submitting messages to the data plane stage.
- * TODO: either remove it or update it.
  */
 struct ControlResponse {
     int m_response;
@@ -129,8 +104,7 @@ const int stage_env_max_size = 50;
  * - m_pid: defines the pid of the process where the data plane stage is executing;
  * - m_ppid: defines the parent pid of the process where the data plane stage is executing.
  * - m_stage_hostname: defines the hostname of node that is executing the application.
- * - app_id: defines the user that submitted the application.
- * TODO: create dedicated object.
+ * - m_stage_user: defines the user that submitted the application.
  */
 struct StageSimplifiedHandshakeRaw {
     char m_stage_name[stage_name_max_size] {};
@@ -163,7 +137,7 @@ struct StageHandshakeRaw {
  * HousekeepingOperation enum class.
  * Defines the supported types of housekeeping operations.
  * Currently, it supports two main operations for creating channels and enforcements objects in a
- * PAIO data plane stage. The remainder are expected to be improved as future work.
+ * data plane stage. The remainder are expected to be improved as future work.
  *  - create_channel: Create a new Channel to receive I/O requests;
  *  - create_object: Create a new EnforcementObject, that respects to an existing Channel.
  *  - no_op: Default housekeeping rule type; does not correspond to any operation.
@@ -192,7 +166,6 @@ enum class HousekeepingOperation {
  * differentiation of requests (including the creation of the differentiation token);
  * - m_operation_context: defines the operation context to be used for the classification and
  * differentiation of requests (including the creation of the differentiation token);
- * TODO: create dedicated class.
  */
 struct HousekeepingCreateChannelRaw {
     uint64_t m_rule_id { 0 };
@@ -219,8 +192,6 @@ struct HousekeepingCreateChannelRaw {
  * - m_enforcement_object_type: defines the type of the EnforcementObject to be created;
  * - m_property_first: defines the initial property (first) of the EnforcementObject;
  * - m_property_second: defines the initial property (second) of the EnforcementObject;
- * TODO: create dedicated class; improve property definition (hardcoded); m_enforcement_object_type
- *  statically defined with EnforcementObject::Noop (problem with circular dependencies).
  */
 struct HousekeepingCreateObjectRaw {
     long m_rule_id { 0 };
@@ -236,116 +207,18 @@ struct HousekeepingCreateObjectRaw {
 };
 
 /**
- * ChannelDifferentiationClassifiersRaw: Raw structure that defines the which I/O classifiers
- * should be considered in the I/O classification and differentiation at Channels. The rule is
- * targeted for the overall data plane (i.e, all Channels).
- * - m_workflow_id: Boolean that defines if the workflow identifier I/O classifier should be
- * considered in I/O differentiation.
- * - m_operation_type: Boolean that defines if the operation type I/O classifier should be
- * considered in I/O differentiation.
- * - m_operation_context: Boolean that defines if the operation context I/O classifier should be
- * considered in I/O differentiation.
- * TODO: support in the SouthboundConnectionHandler; create dedicated object.
- */
-struct ChannelDifferentiationClassifiersRaw {
-    bool m_workflow_id { true };
-    bool m_operation_type { false };
-    bool m_operation_context { false };
-};
-
-/**
- * EnforcementObjectDifferentiationClassifiersRaw: Raw structure that defines the which I/O
- * classifiers should be considered in the I/O classification and differentiation at
- * EnforcementObjects. The rule is targeted for a specific Channel.
- * - m_channel_id: defines the identifier of the Channel that will assume these rules.
- * - m_operation_type: Boolean that defines if the operation type I/O classifier should be
- * considered in I/O differentiation.
- * - m_operation_context: Boolean that defines if the operation context I/O classifier should be
- * considered in I/O differentiation.
- * TODO: support in the SouthboundConnectionHandler; create dedicated object.
- */
-struct EnforcementObjectDifferentiationClassifiersRaw {
-    long m_channel_id { -1 };
-    bool m_operation_type { false };
-    bool m_operation_context { false };
-};
-
-/**
- * DifferentiationRuleRaw: Raw structure to perform the serialization of DifferentiationRules
- * between the PAIO stage and the control plane.
- * - m_rule_id: defines the rule identifier;
- * - m_rule_type: defines the type of the differentiation operation, namely if the rule respects to
- * the I/O differentiation at the channel or enforcement object;
- * - m_channel_id: defines the Channel identifier;
- * - m_enforcement_object_id: defines the EnforcementObject identifier;
- * - m_workflow_id: defines the workflow identifier classifier to perform the differentiation;
- * - m_operation_type: defines the operation type classifier to perform the differentiation;
- * - m_operation_context: defines the operation context classifier to perform the differentiation.
- * TODO: support in the SouthboundConnectionHandler; create dedicated object; m_rule_type
- *  statically defined with DifferentiationRuleType::none (problem with circular dependencies).
- */
-struct DifferentiationRuleRaw {
-    long m_rule_id { 0 };
-    int m_rule_type { 0 }; // static_cast<int> (DifferentiationRuleType::none)
-    long m_channel_id { -1 };
-    long m_enforcement_object_id { -1 };
-    uint32_t m_workflow_id { 0 };
-    uint32_t m_operation_type { 0 };
-    uint32_t m_operation_context { 0 };
-};
-
-/**
  * EnforcementRuleRaw: Raw structure to perform the serialization of EnforcementRules between the
  * PAIO stage and control the plane.
  * - m_rule_id: defines the rule identifier;
  * - m_channel_id: defines the Channel identifier that contains the object to be enforced;
  * - m_enforcement_object_id: defines the EnforcementObject identifier to be enforced;
- * - m_enforcement_object_type: defines the type of the EnforcementObject to be created;
  * - m_enforcement_operation: defines the operation that should be enforced over the object (e.g.,
  * init, rate, ...);
  * - m_property_first: defines the property (first) to be set in the EnforcementObject;
  * - m_property_second: defines the property (second) to be set in the EnforcementObject;
  * - m_property_third: defines the property (third) to be set in the EnforcementObject;
- * TODO: create dedicated class; improve property definition (hardcoded); m_enforcement_object_type
- *  statically defined with EnforcementObject::Noop (problem with circular dependencies);
- *  m_enforcement_operation statically defined as None.
- * Note: This is a very hardcoded struct: tailored for the DynamicRateLimiter object. Later, this
- *  will be update to serve any Object configuration. This features will need to be added and/or
- *  fixed in a later phase.
  */
 struct EnforcementRuleRaw {
-    long m_rule_id { 0 };
-    long m_channel_id { -1 };
-    long m_enforcement_object_id { -1 };
-    // int m_enforcement_object_type { 0 }; // fixme: probably not needed; remove
-    int m_enforcement_operation { 0 };
-    long m_property_first { -1 };
-    long m_property_second { -1 };
-    long m_property_third { -1 };
-};
-
-/**
- * EnforcementRuleWithTimeRaw: Raw structure to perform the serialization of EnforcementRules
- * between the PAIO stage and control the plane.
- * - m_rule_time: Time beginning at zero that defines when a rule should be enforced (in seconds);
- * - m_rule_id: defines the rule identifier;
- * - m_channel_id: defines the Channel identifier that contains the object to be enforced;
- * - m_enforcement_object_id: defines the EnforcementObject identifier to be enforced;
- * - m_enforcement_object_type: defines the type of the EnforcementObject to be created;
- * - m_enforcement_operation: defines the operation that should be enforced over the object (e.g.,
- * init, rate, ...);
- * - m_property_first: defines the property (first) to be set in the EnforcementObject;
- * - m_property_second: defines the property (second) to be set in the EnforcementObject;
- * - m_property_third: defines the property (third) to be set in the EnforcementObject;
- * TODO: create dedicated class; improve property definition (hardcoded); m_enforcement_object_type
- *  statically defined with EnforcementObject::Noop (problem with circular dependencies);
- *  m_enforcement_operation statically defined as None.
- * Note: This is a very hardcoded struct: tailored for the DynamicRateLimiter object. Later, this
- *  will be update to serve any Object configuration. This features will need to be added and/or
- *  fixed in a later phase.
- */
-struct EnforcementRuleWithTimeRaw {
-    long m_rule_time { 0 };
     long m_rule_id { 0 };
     long m_channel_id { -1 };
     long m_enforcement_object_id { -1 };
@@ -364,13 +237,8 @@ struct StageReadyRaw {
 };
 
 /**
- * StatsGlobalRaw: Raw structure to perform the serialization of I/O statistics between the
- * PAIO stage and the control plane. These statistics are specific to the "Per-application bandwidth
- * control" use case of the PAIO paper, where we demonstrate how to ensure QoS bandwidth across
- * multiple applications sharing the same storage device.
- * - m_fg_tasks:
+ * StatsGlobalRaw: Raw structure that holds the rate collected from a data plane stage.
  */
-
 struct StatsGlobalRaw {
     double m_total_rate;
 };

@@ -1,5 +1,5 @@
 /**
- *   Copyright (c) 2020 INESC TEC.
+ *   Copyright (c) 2022 INESC TEC.
  **/
 
 #include <cheferd/networking/local_connection_manager.hpp>
@@ -7,7 +7,7 @@
 
 namespace cheferd {
 
-// LocalConnectionManager constructor for Local Controller.
+// LocalConnectionManager parameterized constructor.
 LocalConnectionManager::LocalConnectionManager (const std::string& controller_address,
     const std::string& local_address) :
     server_fd_ { -1 },
@@ -16,7 +16,6 @@ LocalConnectionManager::LocalConnectionManager (const std::string& controller_ad
     server_fd_array_ {},
     addrlen_array_ {},
     server_type_ { option_communication_ },
-    thread_pool_ { option_max_connections_ },
     index_t { 0 },
     working_connection_ { true }
 {
@@ -47,10 +46,10 @@ LocalConnectionManager::LocalConnectionManager (const std::string& controller_ad
     }
 }
 
-//    LocalConnectionManager default destructor.
+// LocalConnectionManager default destructor.
 LocalConnectionManager::~LocalConnectionManager () = default;
 
-//    Start call. Continuously accept connections from Local Controllers.
+// Start call. Execute an endless loop that continuously accepts connections.
 void LocalConnectionManager::Start (ControlApplication* app_ptr)
 {
     index_t = 0;
@@ -59,25 +58,21 @@ void LocalConnectionManager::Start (ControlApplication* app_ptr)
     LocalControlApplication* ctr_ptr = dynamic_cast<LocalControlApplication*> (app_ptr);
 
     while (working_connection_.load ()) {
-        std::cout << "Waiting for connection ...\n";
+        Logging::log_info ("LocalConnectionManager: Waiting for connection... ");
 
-        // accept data plane stage connection (TensorFlow)
+        // accept data plane stage connection
         int socket_t = AcceptConnections (0);
 
         if (socket_t != -1) {
-            std::cout << "Socket: " << socket_t << "\n";
             // register data plane session
             ctr_ptr->register_stage_session (socket_t);
-
-            // spawn thread for the new data plane session
-            // asio::post (thread_pool_, [&] () { ptr_t->StartSession (socket_t); });
 
             // update index and connection delay
             index_t++;
             delay_t = INITIAL_CONNECTION_DELAY;
 
-            Logging::log_info (
-                "Connecting (" + std::to_string (index_t) + ") and going for the next one ...");
+            Logging::log_info ("LocalConnectionManager: Connecting (" + std::to_string (index_t)
+                + ") and going for the next one ...");
         } else {
             // exponential backoff based algorithm to delay the connection of a
             // new data plane stage
@@ -93,14 +88,15 @@ void LocalConnectionManager::Start (ControlApplication* app_ptr)
     ctr_ptr->stop_feedback_loop ();
 }
 
+// Stop call. Stop connection manager.
 void LocalConnectionManager::Stop ()
 {
     close (server_fd_array_[0]);
     working_connection_ = false;
 }
 
-//    PrepareInetConnection call. Prepare INET-based connections between the
-//    control plane and the data plane stage.
+// PrepareInetConnection call. Prepare INET-based connections between the
+// control plane and the data plane stage.
 int LocalConnectionManager::PrepareInetConnection (int port)
 {
     Logging::log_info ("LocalConnectionManager: establishing INET connection with "
@@ -108,7 +104,7 @@ int LocalConnectionManager::PrepareInetConnection (int port)
 
     // Creating socket file descriptor
     if ((server_fd_ = socket (AF_INET, SOCK_STREAM, 0)) == 0) {
-        Logging::log_error ("Socket creation error.");
+        Logging::log_error ("LocalConnectionManager: Socket creation error.");
         exit (EXIT_FAILURE);
     }
 
@@ -117,20 +113,20 @@ int LocalConnectionManager::PrepareInetConnection (int port)
     inet_socket_.sin_port = htons (port);
 
     if (bind (server_fd_, (struct sockaddr*)&inet_socket_, sizeof (inet_socket_)) < 0) {
-        Logging::log_error ("Bind error.");
+        Logging::log_error ("LocalConnectionManager: Bind error.");
         return -1;
     }
 
     if (listen (server_fd_, 3) < 0) {
-        Logging::log_error ("Listen error.");
+        Logging::log_error ("LocalConnectionManager: Listen error.");
         return -1;
     }
 
     return 0;
 }
 
-//    PrepareUnixConnection call. Prepare UNIX Domain socket connections between
-//    the control plane and the data plane stage.
+// PrepareUnixConnection call. Prepare UNIX Domain socket connections between
+// the control plane and the data plane stage.
 int LocalConnectionManager::PrepareUnixConnection (const char* socket_name, int backlog)
 {
     Logging::log_info ("LocalConnectionManager: establishing UNIX connection with "
@@ -140,7 +136,7 @@ int LocalConnectionManager::PrepareUnixConnection (const char* socket_name, int 
     unlink (socket_name);
 
     if ((server_fd_ = socket (AF_UNIX, SOCK_STREAM, 0)) == 0) {
-        Logging::log_error ("Socket creation error.");
+        Logging::log_error ("LocalConnectionManager: Socket creation error.");
         exit (EXIT_FAILURE);
     }
 
@@ -148,12 +144,12 @@ int LocalConnectionManager::PrepareUnixConnection (const char* socket_name, int 
     strncpy (unix_socket_.sun_path, socket_name, sizeof (unix_socket_.sun_path) - 1);
 
     if (bind (server_fd_, (struct sockaddr*)&unix_socket_, sizeof (unix_socket_)) < 0) {
-        Logging::log_error ("Bind error.");
+        Logging::log_error ("LocalConnectionManager: Bind error.");
         return -1;
     }
 
     if (listen (server_fd_, 3) < 0) {
-        Logging::log_error ("Listen error.");
+        Logging::log_error ("LocalConnectionManager: Listen error.");
         return -1;
     }
 
@@ -162,20 +158,20 @@ int LocalConnectionManager::PrepareUnixConnection (const char* socket_name, int 
     return 0;
 }
 
+// PrepareUnixConnections call. Prepare UNIX Domain socket connections
+// between the control plane and the data plane stage (multiple).
 int LocalConnectionManager::PrepareUnixConnections (const char* socket_name, int index)
 {
-    Logging::log_info ("UnixConnection: connecting instance-" + std::to_string (index + 1)
-        + " through UNIX sockets.");
+    Logging::log_info ("LocalConnectionManager: UnixConnection: connecting instance-"
+        + std::to_string (index + 1) + " through UNIX sockets.");
 
     // creating socket file descriptor
     unlink (socket_name);
 
     if ((server_fd_array_[index] = socket (AF_UNIX, SOCK_STREAM, 0)) == 0) {
-        Logging::log_error ("Socket creation error.");
+        Logging::log_error ("LocalConnectionManager: Socket creation error.");
         exit (EXIT_FAILURE);
     }
-
-    //    setsockopt(server_fd_array_[index],SOL_SOCKET,SO_REUSEADDR|SO_REUSEPORT|SO_NOSIGPIPE,&opt,sizeof(opt));
 
     unix_socket_array_[index].sun_family = AF_UNIX;
     strncpy (unix_socket_array_[index].sun_path,
@@ -186,25 +182,25 @@ int LocalConnectionManager::PrepareUnixConnections (const char* socket_name, int
             (struct sockaddr*)&unix_socket_array_[index],
             sizeof (unix_socket_array_[index]))
         < 0) {
-        Logging::log_error ("Bind error.");
+        Logging::log_error ("LocalConnectionManager: Bind error.");
         return -1;
     }
 
     if (listen (server_fd_array_[index], 3) < 0) {
-        Logging::log_error ("Listen error.");
+        Logging::log_error ("LocalConnectionManager: Listen error.");
         return -1;
     }
 
     addrlen_array_[index] = sizeof (unix_socket_array_[index]);
 
-    Logging::log_debug ("Socket [" + std::to_string (index) + "] = "
+    Logging::log_debug ("LocalConnectionManager: Socket [" + std::to_string (index) + "] = "
         + std::to_string (server_fd_array_[index]) + ", " + std::to_string (addrlen_array_[index]));
 
     return 0;
 }
 
-//    Accept call. establish a new connection between the control plane and a
-//    data plane stage.
+// Accept call. Establish a new connection between the control plane and a data
+// plane stage (single).
 int LocalConnectionManager::Accept ()
 {
     int new_socket_t = -1;
@@ -219,7 +215,8 @@ int LocalConnectionManager::Accept ()
             new_socket_t == -1
                 ? Logging::log_error ("LocalConnectionManager: failed to connect with "
                                       "data plane stage {UNIX}.")
-                : Logging::log_debug ("New data plane stage connection established {UNIX}.");
+                : Logging::log_debug ("LocalConnectionManager: New data plane stage "
+                                      "connection established {UNIX}.");
 
             break;
 
@@ -232,25 +229,26 @@ int LocalConnectionManager::Accept ()
             new_socket_t == -1
                 ? Logging::log_error ("LocalConnectionManager: failed to connect with "
                                       "data plane stage {INET}.")
-                : Logging::log_debug ("New data plane stage connection established {INET}.");
+                : Logging::log_debug ("LocalConnectionManager: New data plane stage "
+                                      "connection established {INET}.");
 
             break;
 
         default:
-            Logging::log_error ("Communication type not supported.");
+            Logging::log_error ("LocalConnectionManager: Communication type not supported.");
             break;
     }
 
     return new_socket_t;
 }
 
-//    AcceptConnections call. Establish a new connection between the
-//    control plane and a data plane stage.
+// AcceptConnections call. Establish a new connection between the control plane and a
+// data plane stage (multiple).
 int LocalConnectionManager::AcceptConnections (int index)
 {
     int new_socket_t = -1;
 
-    Logging::log_info ("AcceptConnections:: " + std::to_string (index));
+    Logging::log_info ("LocalConnectionManager: AcceptConnections:: " + std::to_string (index));
     switch (server_type_) {
         case CommunicationType::UNIX:
             // accept new data plane stage connection
@@ -258,19 +256,13 @@ int LocalConnectionManager::AcceptConnections (int index)
                 (struct sockaddr*)&unix_socket_array_[index],
                 (socklen_t*)&addrlen_array_[index]);
 
-            // verify socket value
-            /*new_socket_t == -1 ? Logging::log_error ("LocalConnectionManager: failed to connect
-               with " "data plane stage {UNIX}.") : Logging::log_info ("New data plane stage
-               connection established "
-                                                    "{UNIX} (tensorflow-"
-                                   + std::to_string (index) + ").");*/
             break;
 
         case CommunicationType::gRPC:
 
             break;
         default:
-            Logging::log_error ("Communication type not supported.");
+            Logging::log_error ("LocalConnectionManager: Communication type not supported.");
             break;
     }
 
@@ -279,13 +271,11 @@ int LocalConnectionManager::AcceptConnections (int index)
 
 ///////////////////////
 
-//    Operator call. Launch an ephemeral Data Plane Session.
+// Operator call. Launch an Data Plane Session.
 void LocalConnectionManager::operator() (int socket, DataPlaneSession* session)
 {
     if (session == nullptr) {
         Logging::log_error ("LocalConnectionManager operator -- nullptr session.");
-    } else {
-        std::cout << "Session address: " << &session << "\n";
     }
     session->StartSession ();
 }

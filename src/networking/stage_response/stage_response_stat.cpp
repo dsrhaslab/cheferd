@@ -1,38 +1,37 @@
 /**
- *   Copyright (c) 2020 INESC TEC.
+ *   Copyright (c) 2022 INESC TEC.
  **/
 
 #include "cheferd/networking/stage_response/stage_response_stat.hpp"
 
 namespace cheferd {
 
-//    StageResponseStatsTF default constructor.
+// StageResponseStat default constructor.
 StageResponseStat::StageResponseStat () : m_total_rate { 0 }
 { }
 
-//    StageResponseStat parameterized constructor.
-StageResponseStat::StageResponseStat (const int& response_type,
-    const double& total_rate) :
+// StageResponseStat parameterized constructor.
+StageResponseStat::StageResponseStat (const int& response_type, const double& total_rate) :
     StageResponse { response_type },
     m_total_rate { total_rate }
 { }
 
-//    StageResponseStatsTF default destructor.
+// StageResponseStat default destructor.
 StageResponseStat::~StageResponseStat () = default;
 
-//    ResponseType call. (...)
+// ResponseType call. Get response's type
 int StageResponseStat::ResponseType () const
 {
     return response_type_;
 }
 
-// get_metadata_total_rate call. (...)
+// get_total_rate call. Get data plane stage total rate
 double StageResponseStat::get_total_rate () const
 {
     return this->m_total_rate;
 }
 
-//    toString call. (...)
+// toString call. Converts response to string.
 std::string StageResponseStat::toString () const
 {
     std::string return_value_t

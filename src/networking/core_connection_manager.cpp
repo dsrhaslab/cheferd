@@ -1,5 +1,5 @@
 /**
- *   Copyright (c) 2020 INESC TEC.
+ *   Copyright (c) 2022 INESC TEC.
  **/
 
 #include <cheferd/networking/core_connection_manager.hpp>
@@ -7,17 +7,17 @@
 
 namespace cheferd {
 
-// CoreConnectionManager constructor for Core Controller.
+// CoreConnectionManager parameterized constructor.
 CoreConnectionManager::CoreConnectionManager (const std::string& controller_address) :
     m_control_application_ptr { nullptr },
     core_address { controller_address },
     index_t { 0 }
 { }
 
-//    CoreConnectionManager default destructor.
+// CoreConnectionManager default destructor.
 CoreConnectionManager::~CoreConnectionManager () = default;
 
-//    Start call. Continuously accept connections from Local Controllers.
+// Start call. Execute a server that continuously accepts connections.
 void CoreConnectionManager::Start (ControlApplication* app_ptr)
 {
     m_control_application_ptr = dynamic_cast<CoreControlApplication*> (app_ptr);
@@ -33,22 +33,22 @@ void CoreConnectionManager::Start (ControlApplication* app_ptr)
 
     // Finally assemble the server.
     server = builder.BuildAndStart ();
-    std::cout << "Server listening on " << core_address << std::endl;
+    Logging::log_info ("CoreConnectionManager: Server listening on " + core_address);
 
     // Wait for the server to shutdown.
     // Note that some other thread must be responsible for shutting down the server for this call to
     // ever return.
     server->Wait ();
 
-    std::cout << "Waiting for connection ...\n";
+    Logging::log_info ("CoreConnectionManager: Waiting for connection... ");
 }
 
-// Connect local controller to core controller
+// ConnectLocalToGlobal call. Connect local controller to core controller.
 Status CoreConnectionManager::ConnectLocalToGlobal (ServerContext* context,
     const ConnectRequest* request,
     ConnectReply* reply)
 {
-    std::string prefix ("Hello user with address: ");
+    std::string prefix ("Hello local controller with address: ");
 
     PStatus status;
 
@@ -56,16 +56,16 @@ Status CoreConnectionManager::ConnectLocalToGlobal (ServerContext* context,
         // register data plane session
 
         if (m_control_application_ptr != nullptr) {
-            m_control_application_ptr->register_local_controller_session (
-                    request->user_address ());
+            m_control_application_ptr->register_local_controller_session (request->user_address ());
 
             // update index and connection delay
             index_t++;
 
-            Logging::log_info (
-                "Connecting (" + std::to_string (index_t) + ") and going for the next one ...");
+            Logging::log_info ("CoreConnectionManager: Connecting (" + std::to_string (index_t)
+                + ") and going for the next one ...");
         } else {
-            reply->set_message ("Connection to Core Controller is not possible\n");
+            reply->set_message (
+                "CoreConnectionManager: Connection to Core Controller is not possible\n");
             return Status::CANCELLED;
         }
     }
@@ -74,7 +74,7 @@ Status CoreConnectionManager::ConnectLocalToGlobal (ServerContext* context,
     return Status::OK;
 }
 
-// Connect data plane stage to core controller
+// ConnectStageToGlobal stage. Connect stage to core controller.
 Status CoreConnectionManager::ConnectStageToGlobal (ServerContext* context,
     const StageInfoConnect* request,
     ConnectReply* reply)
@@ -91,10 +91,11 @@ Status CoreConnectionManager::ConnectStageToGlobal (ServerContext* context,
                 request->stage_env (),
                 request->stage_user ());
 
-            Logging::log_info ("Connecting stage (" + request->stage_name () + ") from "
-                + request->local_address () + " and going for the next one ...");
+            Logging::log_info ("CoreConnectionManager: Connecting stage (" + request->stage_name ()
+                + ") from " + request->local_address () + " and going for the next one ...");
         } else {
-            reply->set_message ("Connection to Core Controller is not possible\n");
+            reply->set_message (
+                "CoreConnectionManager: Connection to Core Controller is not possible\n");
             return Status::CANCELLED;
         }
     }
@@ -103,6 +104,7 @@ Status CoreConnectionManager::ConnectStageToGlobal (ServerContext* context,
     return Status::OK;
 }
 
+// Stop call. Stop connection manager.
 void CoreConnectionManager::Stop ()
 {
     server->Shutdown ();

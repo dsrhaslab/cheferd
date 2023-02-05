@@ -1,33 +1,32 @@
 /**
- *   Written by Ricardo Macedo.
- *   Copyright (c) 2020 INESC TEC.
+ *   Copyright (c) 2022 INESC TEC.
  **/
 
 #include "cheferd/networking/stage_response/stage_response_stats.hpp"
 
 namespace cheferd {
 
-//    StageResponseStats default constructor.
+// StageResponseStats default constructor.
 StageResponseStats::StageResponseStats ()
 { }
 
-//    StageResponseStats parameterized constructor.
+// StageResponseStats parameterized constructor.
 StageResponseStats::StageResponseStats (const int& response_type,
     std::unique_ptr<std::unordered_map<std::string, std::unique_ptr<StageResponse>>>& mStats_ptr) :
     StageResponse { response_type },
     m_stats_ptr { std::move (mStats_ptr) }
 { }
 
-//    StageResponseStats default destructor.
+// StageResponseStats default destructor.
 StageResponseStats::~StageResponseStats () = default;
 
-//    ResponseType call. (...)
+// ResponseType call. Get response's type.
 int StageResponseStats::ResponseType () const
 {
     return response_type_;
 }
 
-//    toString call. (...)
+// toString call. Converts response to string.
 std::string StageResponseStats::toString () const
 {
     std::string return_value_t = "Stats {";

@@ -1,6 +1,5 @@
 /**
- *   Written by Ricardo Macedo and João Paulo.
- *   Copyright (c) 2020 INESC TEC.
+ *   Copyright (c) 2022 INESC TEC.
  **/
 
 #ifndef CHEFERD_CORE_CONNECTION_MANAGER_HPP
@@ -45,10 +44,14 @@ namespace cheferd {
 #define MAX_CONNECTION_DELAY     INT_MAX
 
 /**
- * ConnectionManager class.
- * Complete me ...
+ * CoreConnectionManager class.
+ * CoreConnectionManager is used to manage the connections to the core controller.
+ * Currently, the CoreConnectionManager class contains the following variables:
+ * - m_control_application_ptr: ControlApplication component.
+ * - core_address: Core controller address.
+ * - index_t: local controller index.
+ * - server: unique_ptr of Server to send requests to core controller.
  */
-
 class CoreConnectionManager : public LocalToGlobal::Service, public ConnectionManager {
 
 private:
@@ -58,32 +61,32 @@ private:
     std::unique_ptr<Server> server;
 
     /**
-     * Operator: After establishing the connection with the data plane stage,
-     * launch an ephemeral Data Plane session.
-     * @param socket Socket identifier (file descriptor).
-     * @param session Data plane session pointer.
+     * ConnectLocalToGlobal: Connect local controller to core controller.
+     * @param context Server context.
+     * @param request Rules to be enforced.
+     * @param reply Response.
+     * @return Returns Status value that defines if the operation was successful.
      */
     Status ConnectLocalToGlobal (ServerContext* context,
         const ConnectRequest* request,
         ConnectReply* reply) override;
 
+    /**
+     * ConnectStageToGlobal: Connect stage to core controller.
+     * @param context Server context.
+     * @param request Rules to be enforced.
+     * @param reply Response.
+     * @return Returns Status value that defines if the operation was successful.
+     */
     Status ConnectStageToGlobal (ServerContext* context,
         const StageInfoConnect* request,
         ConnectReply* reply) override;
 
 public:
     /**
-     * CoreConnectionManager default constructor.
+     *  CoreConnectionManager parameterized constructor.
+     *  @param controller_address Core controller address
      */
-
-    /**
-     *  CoreConnectionManager
-     *  parameterized constructor.
-     *  Initializes parameters with the configuration values based on the data
-     * plane instance.
-     *  @param controller_address Defines the global controller address
-     */
-
     CoreConnectionManager (const std::string& controller_address);
 
     /**
@@ -92,14 +95,14 @@ public:
     ~CoreConnectionManager ();
 
     /**
-     * Start: Execute an endless loop that continuously accepts connections from
-     * Data Plane stages.
-     * TODO: refactor -- merge with the previous method; should not use
-     * different methods, just use the base class.
+     * Start: Execute a server that continuously accepts connections.
+     * @param application_ptr ControlApplication object.
      */
-    // void Start (CoreControlApplication* application_ptr);
     void Start (ControlApplication* application_ptr) override;
 
+    /**
+     * Stop: Stop connection manager.
+     */
     void Stop () override;
 };
 } // namespace cheferd

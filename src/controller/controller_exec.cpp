@@ -1,6 +1,5 @@
 /**
- *   Written by Ricardo Macedo.
- *   Copyright (c) 2020 INESC TEC.
+ *   Copyright (c) 2022 INESC TEC.
  **/
 
 #include <cheferd/controller/controller.hpp>

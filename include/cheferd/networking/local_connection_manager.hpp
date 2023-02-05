@@ -1,6 +1,5 @@
 /**
- *   Written by Ricardo Macedo and João Paulo.
- *   Copyright (c) 2020 INESC TEC.
+ *   Copyright (c) 2022 INESC TEC.
  **/
 
 #ifndef CHEFERD_LOCAL_CONNECTION_MANAGER_HPP
@@ -25,7 +24,18 @@ namespace cheferd {
 
 /**
  * LocalConnectionManager class.
- * Complete me ...
+ * LocalConnectionManager is used to manage the connections to the local controller.
+ * Currently, the LocalConnectionManager class contains the following variables:
+ * - inet_socket_: INET socket.
+ * - unix_socket_: UNIX socket.
+ * - server_fd_: socket file descriptor.
+ * - addrlen_: address length.
+ * - unix_socket_array_: container that holds sockets.
+ * - server_fd_array_: container that holds file descriptors.
+ * - addrlen_array_: container that holds address lengths.
+ * - server_type_: connection type (e.g., UNIX, INET).
+ * - index_t: data plane stage index.
+ * - working_connection: atomic value that holds if connection manager is operational.
  */
 class LocalConnectionManager : public ConnectionManager {
 
@@ -34,22 +44,16 @@ private:
     struct sockaddr_un unix_socket_;
     int server_fd_;
     int addrlen_;
-
     struct sockaddr_un unix_socket_array_[option_max_connections_];
     int server_fd_array_[option_max_connections_];
     int addrlen_array_[option_max_connections_];
-
     CommunicationType server_type_;
-
-    asio::thread_pool thread_pool_;
-
     int index_t;
-
     std::atomic<bool> working_connection_;
 
     /**
      * Accept: Establish a new connection between the control plane and a data
-     * plane stage.
+     * plane stage (single).
      * @return Returns the assigned socket (file descriptor) of the established
      * communication.
      */
@@ -57,15 +61,15 @@ private:
 
     /**
      * AcceptConnections: Establish a new connection between the control plane and a
-     * data plane stage.
+     * data plane stage (multiple).
+     * @param index Index.
      * @return Returns the assigned socket (file descriptor) of the established
      * communication.
      */
     int AcceptConnections (int index);
 
     /**
-     * Operator: After establishing the connection with the data plane stage,
-     * launch an ephemeral Data Plane session.
+     * Operator: Launch an Data Plane Session.
      * @param socket Socket identifier (file descriptor).
      * @param session Data plane session pointer.
      */
@@ -75,36 +79,33 @@ private:
      * PrepareInetConnection: Prepare INET-based connections between the control
      * plane and the data plane stage.
      * @param port INET connection's port.
-     * @return (Change this to PStatus)
+     * @return Returns value that defines if the operation was successful.
      */
     int PrepareInetConnection (int port);
 
     /**
      * PrepareUnixConnection: Prepare UNIX Domain socket connections between the
-     * control plane and the data plane stage.
+     * control plane and the data plane stage (single).
      * @param socket_name UNIX Domain Socket name.
-     * @return (Change this to PStatus)
+     * @param index Index.
+     * @return Returns value that defines if the operation was successful.
      */
     int PrepareUnixConnection (const char* socket_name, int index);
 
     /**
      * PrepareUnixConnections: Prepare UNIX Domain socket connections
-     * between the control plane and the data plane stage.
+     * between the control plane and the data plane stage (multiple).
      * @param socket_name UNIX Domain Socket name.
+     * @param index Index.
      * @return (Change this to PStatus)
      */
     int PrepareUnixConnections (const char* socket_name, int index);
 
 public:
     /**
-     * LocalConnectionManager default constructor.
-     */
-
-    /**
      *  LocalConnectionManager parameterized constructor.
-     *  Initializes parameters with the configuration values based on the data
-     * plane instance.
-     *  @param controller_address Defines the global controller address
+     *  @param controller_address Core controller address.
+     *  @param local_address Local controller adderess.
      */
     LocalConnectionManager (const std::string& controller_address,
         const std::string& local_address);
@@ -115,13 +116,14 @@ public:
     ~LocalConnectionManager ();
 
     /**
-     * Start: Execute an endless loop that continuously accepts connections from
-     * Local controllers.
-     * TODO: refactor -- merge with the previous method; should not use
-     * different methods, just use the base class.
+     * Start: Execute an endless loop that continuously accepts connections.
+     * @param application_ptr ControlApplication object.
      */
     void Start (ControlApplication* application_ptr) override;
 
+    /**
+     * Stop: Stop connection manager.
+     */
     void Stop () override;
 };
 } // namespace cheferd

@@ -1,6 +1,5 @@
 /**
- *   Written by Ricardo Macedo.
- *   Copyright (c) 2020 INESC TEC.
+ *   Copyright (c) 2022 INESC TEC.
  **/
 
 #ifndef CHEFERD_PAIO_INTERFACE_HPP
@@ -21,19 +20,39 @@ namespace cheferd {
 
 /**
  * PAIOInterface class.
- * ...
+ * Interface to communication with a PAIO data plane stage.
  */
 class PAIOInterface : public SouthboundInterface {
 
 private:
+    /**
+     * parse_rule: Parses a rule into tokens.
+     * @param rule Rule to be parsed.
+     * @param tokens Container to store parsed tokens.
+     */
     void parse_rule (const std::string& rule, std::vector<std::string>* tokens);
 
+    /**
+     * fill_create_channel_rule: Fill HousekeepingCreateChannelRaw with tokens data.
+     * @param hsk_channel_obj HousekeepingCreateChannelRaw object to be filled.
+     * @param tokens Data to fill object.
+     */
     void fill_create_channel_rule (HousekeepingCreateChannelRaw* hsk_channel_obj,
         const std::vector<std::string>& tokens);
 
+    /**
+     * fill_create_object_rule: Fill HousekeepingCreateObjectRaw with tokens data.
+     * @param hsk_object_obj HousekeepingCreateObjectRaw object to be filled.
+     * @param tokens Data to fill object.
+     */
     void fill_create_object_rule (HousekeepingCreateObjectRaw* hsk_object_obj,
         const std::vector<std::string>& tokens);
 
+    /**
+     * fill_enforcement_rule: Fill EnforcementRuleRaw with tokens data.
+     * @param enf_object EnforcementRuleRaw object to be filled.
+     * @param tokens Data to fill object.
+     */
     void fill_enforcement_rule (EnforcementRuleRaw* enf_object,
         const std::vector<std::string>& tokens);
 
@@ -49,30 +68,42 @@ public:
     ~PAIOInterface ();
 
     /**
-     * StageHandshake: ...
+     * stage_handshake: Handshake a data plane stage.
+     * Submit a handshake request to collect data about the data plane stage.
      * @param socket Corresponds to the open file descriptor/socket of a
      * specific controller-data plane communication.
-     * @param send ControlSend object that contains the type of rule that will
-     * be sent, its size, and the id.
-     * @param stage_handshake_object
-     * @return
+     * @param operation ControlOperation object that contains the type of rule that will
+     * be sent, its size, and the id..
+     * @param stage_handshake_obj StageSimplifiedHandshakeRaw object stores data plane stage
+     * detailed information.
+     * @return PStatus::OK() if the rule was successfully dequeued,
+     * * PStatus::Error() otherwise.
      */
     PStatus stage_handshake (int socket,
         ControlOperation* operation,
         StageSimplifiedHandshakeRaw& stage_handshake_obj) override;
 
+    /**
+     * stage_handshake_address: Informs a data plane stage about the new socket to connect to.
+     * @param socket Corresponds to the open file descriptor/socket of a
+     * specific controller-data plane communication.
+     * @param rule New socket to connect to.
+     * @param response Response obtained.
+     * @return PStatus::OK() if the rule was successfully dequeued,
+     * * PStatus::Error() otherwise.
+     */
     PStatus stage_handshake_address (int socket, const std::string& rule, ACK& response);
 
     /**
-     * CreateHousekeepingRule: Create a HousekeepingRule to be installed at the
-     * data plane stage.
+     * create_housekeeping_rule: Creates a housekeeping rule at the data plane stage.
      * @param socket Corresponds to the open file descriptor/socket of a
      * specific controller-data plane communication.
-     * @param send ControlSend object that contains the type of rule that will
-     * be sent, its size, and the id.
-     * @param rule ...
-     * @param response ...
-     * @return PStatus value that defines if the operation was successful.
+     * @param operation ControlOperation object that contains the type of rule that will
+     * be sent, its size, and the id..
+     * @param rule Housekeeping rule to be created.
+     * @param response Response obtained.
+     * @return PStatus::OK() if the rule was successfully dequeued,
+     * * PStatus::Error() otherwise.
      */
     PStatus create_housekeeping_rule (int socket,
         ControlOperation* operation,
@@ -80,40 +111,16 @@ public:
         ACK& response) override;
 
     /**
-     * ExecuteHousekeepingRules: order to execute all pending HousekeepingRules.
-     * @param send ControlSend object that contains the type of rule that will
-     * be sent, its size, and the id.
+     * mark_stage_ready: Mark data plane stage as ready.
      * @param socket Corresponds to the open file descriptor/socket of a
      * specific controller-data plane communication.
-     * @param rule ...
-     * @param response ...
-     * @return PStatus value that defines if the operation was successful.
-     */
-    PStatus ExecuteHousekeepingRules (int socket,
-        ControlOperation* operation,
-        const std::string& rule,
-        ACK& response) override;
-
-    /**
-     * create_differentiation_rule: ...
-     * @param socket  ...
-     * @param send  ...
-     * @param rule  ...
-     * @param response  ...
-     * @return  ...
-     */
-    PStatus create_differentiation_rule (int socket,
-        ControlOperation* operation,
-        const std::string& rule,
-        ACK& response) override;
-
-    /**
-     * mark_stage_ready
-     * @param socket
-     * @param operation
-     * @param stage_ready_obj
-     * @param response
-     * @return
+     * @param operation ControlOperation object that contains the type of rule that will
+     * be sent, its size, and the id..
+     * @param stage_ready_obj StageReadyRaw object stores if a data plane stage
+     * is ready
+     * @param response Response obtained.
+     * @return PStatus::OK() if the rule was successfully dequeued,
+     * * PStatus::Error() otherwise.
      */
     PStatus mark_stage_ready (int socket,
         ControlOperation* operation,
@@ -121,12 +128,15 @@ public:
         ACK& response) override;
 
     /**
-     * CreateEnforcementRule: ...
-     * @param socket ...
-     * @param send ...
-     * @param rule ...
-     * @param response ...
-     * @return ...
+     * create_enforcement_rule: Creates an enforcement rule at the data plane stage.
+     * @param socket Corresponds to the open file descriptor/socket of a
+     * specific controller-data plane communication.
+     * @param operation ControlOperation object that contains the type of rule that will
+     * be sent, its size, and the id..
+     * @param rule Enforcement rule to be created.
+     * @param response Response obtained.
+     * @return PStatus::OK() if the rule was successfully dequeued,
+     * * PStatus::Error() otherwise.
      */
     PStatus create_enforcement_rule (int socket,
         ControlOperation* operation,
@@ -134,34 +144,33 @@ public:
         ACK& response) override;
 
     /**
-     * RemoveRule: remove a HousekeepingRule from a specific data plane stage.
-     * @param send ControlSend object that contains the type of rule that will
-     * be sent, its size, and the id.
+     * RemoveRule: Remove a HousekeepingRule from a specific data plane stage.
      * @param socket Corresponds to the open file descriptor/socket of a
      * specific controller-data plane communication.
+     * @param operation ControlOperation object that contains the type of rule that will
+     * be sent, its size, and the id.
      * @param rule_id HousekeepingRule identifier.
-     * @return PStatus value that defines if the operation was successful.
+     * @param response Response obtained.
+     * @return PStatus::OK() if the rule was successfully dequeued,
+     * PStatus::Error() otherwise.
      */
-    PStatus
-    RemoveRule (int socket, ControlOperation* operation, int rule_id, ACK& response) override;
+    PStatus RemoveRule (int socket, ControlOperation* operation, int rule_id, ACK& response) override;
 
     /**
-     * collect_statistics: get the statistics of a specific Enforcement Unit of
-     * the current data plane stage.
+     * collect_statistics: Get the statistics of a current data plane stage.
      * @param socket Corresponds to the open file descriptor/socket of a
      * specific controller-data plane communication.
-     * @param send ControlSend object that contains the type of rule that will
+     * @param operation ControlOperation object that contains the type of rule that will
      * be sent, its size, and the id.
      * @return PStatus value that defines if the operation was successful.
      */
     PStatus collect_statistics (int socket, ControlOperation* operation) override;
 
     /**
-     * CollectGlobalStatistics: get the statistics of a plane stage.
+     * collect_statistics: Get the statistics of a current data plane stage.
      * @param socket Corresponds to the open file descriptor/socket of a
      * specific controller-data plane communication.
-     * @param send ControlSend object that contains the type of rule that will
-     * be sent, its size, and the id.
+     * @param stats_tf_object StatsGlobalRaw object that contains the type of statistics collected.
      * @return PStatus value that defines if the operation was successful.
      */
     PStatus collect_global_statistics (int socket,

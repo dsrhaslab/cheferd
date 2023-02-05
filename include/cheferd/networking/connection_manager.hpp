@@ -1,6 +1,5 @@
 /**
- *   Written by Ricardo Macedo and João Paulo.
- *   Copyright (c) 2020 INESC TEC.
+ *   Copyright (c) 2022 INESC TEC.
  **/
 
 #ifndef CHEFERD_CONNECTION_MANAGER_HPP
@@ -19,24 +18,14 @@
 
 namespace cheferd {
 
-#define INITIAL_CONNECTION_DELAY 500000
-#define MAX_CONNECTION_DELAY     INT_MAX
-
 /**
  * ConnectionManager class.
- * Complete me ...
+ * The ConnectionManager class serves as base class for the connection manager component of both
+ * core and local control applications.
  */
 class ConnectionManager {
 
 private:
-    /**
-     * Operator: After establishing the connection with the data plane stage,
-     * launch an ephemeral Data Plane session.
-     * @param socket Socket identifier (file descriptor).
-     * @param session Data plane session pointer.
-     */
-    void operator() (int socket, DataPlaneSession* session) {};
-
 public:
     /**
      * ConnectionManager default destructor.
@@ -44,20 +33,14 @@ public:
     virtual ~ConnectionManager () = default;
 
     /**
-     * Start: Execute an endless loop that continuously accepts connections from
-     * Data Plane stages.
-     * TODO: refactor -- merge with the previous method; should not use
-     * different methods, just use the base class.
+     * Start: Execute an endless loop that continuously accepts connections.
+     * @param application_ptr ControlApplication object.
      */
     virtual void Start (ControlApplication* application_ptr) {};
 
     /**
-     * Start: Execute an endless loop that continuously accepts connections from
-     * Local controllers.
-     * TODO: refactor -- merge with the previous method; should not use
-     * different methods, just use the base class.
+     * Stop: Stop connection manager.
      */
-    // void Start (LocalControlApplication* application_ptr);
     virtual void Stop () {};
 };
 } // namespace cheferd

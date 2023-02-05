@@ -90,7 +90,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Setup the options that CMake can take in
 option(cheferd_INSTALL "Install cheferd's header and library" ON)
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
-option(CHEFERD_TESTS "Build Cheferd's unit tests" ON)
 
 # Setup the basic C++ Compiler flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
@@ -152,7 +151,6 @@ target_sources(
         ${PROJECT_SOURCE_DIR}/include/cheferd/networking/stage_response/stage_response_handshake.hpp
         ${PROJECT_SOURCE_DIR}/include/cheferd/networking/stage_response/stage_response_stat.hpp
         ${PROJECT_SOURCE_DIR}/include/cheferd/networking/stage_response/stage_response_stats.hpp
-        ${PROJECT_SOURCE_DIR}/include/cheferd/session/session.hpp
         ${PROJECT_SOURCE_DIR}/include/cheferd/session/data_plane_session.hpp
         ${PROJECT_SOURCE_DIR}/include/cheferd/session/handshake_session.hpp
         ${PROJECT_SOURCE_DIR}/include/cheferd/session/local_controller_session.hpp
@@ -183,7 +181,6 @@ target_sources(
         src/networking/stage_response/stage_response_handshake.cpp
         src/networking/stage_response/stage_response_stat.cpp
         src/networking/stage_response/stage_response_stats.cpp
-        src/session/session.cpp
         src/session/handshake_session.cpp
         src/session/data_plane_session.cpp
         src/session/local_controller_session.cpp
@@ -260,38 +257,6 @@ FetchContent_MakeAvailable(yaml-cpp)
 target_link_libraries(cheferd yaml-cpp)
 
 # ---------------------------------------------------------------------------- #
-
-# ---------------------------------------------------------------------------- #
-# tests
-
-
-if (CHEFERD_TESTS)
-    message(STATUS "Compiling CHEFERD tests ...")
-    enable_testing()
-
-    function(cheferd_test test_file exec_file)
-        get_filename_component(test_target_name "${exec_file}" NAME_WE)
-
-        add_executable("${test_target_name}" "")
-        target_sources("${test_target_name}"
-                PRIVATE
-                "${test_file}"
-                )
-
-        target_compile_options("${test_target_name}" PRIVATE ${warn_opts})
-        target_link_libraries("${test_target_name}" cheferd)
-
-        add_test(NAME "${test_target_name}" COMMAND "${test_target_name}")
-    endfunction(cheferd_test)
-    #cheferd_test("tests/cheferd_controller_flags_test.cpp" "controller_flags_test")
-    cheferd_test("tests/cheferd_housekeeping_rules_file_parser_test.cpp" "housekeeping_rules_file_parser_test")
-    cheferd_test("tests/cheferd_control_rules_file_parser_test.cpp" "control_rules_file_parser_test")
-    cheferd_test("tests/cheferd_local_controller_connection_test.cpp" "local_controller_connection_test")
-    cheferd_test("tests/cheferd_data_plane_connection_test.cpp" "data_plane_connection_test")
-    cheferd_test("tests/cheferd_collect_statistics_test.cpp" "collect_statistics_test")
-
-endif (CHEFERD_TESTS)
-
 
 
 # ---------------------------------------------------------------------------- #

@@ -1,6 +1,5 @@
 /**
- *   Written by Ricardo Macedo.
- *   Copyright (c) 2020 INESC TEC.
+ *   Copyright (c) 2022 INESC TEC.
  **/
 
 #include <cheferd/controller/local_control_application.hpp>
@@ -14,7 +13,7 @@ extern "C" {
 
 namespace cheferd {
 
-// LocalControlApplication default constructor.
+// LocalControlApplication parameterized constructor.
 LocalControlApplication::LocalControlApplication (const std::string& core_address,
     const std::string& local_address) :
     ControlApplication {},
@@ -65,15 +64,102 @@ LocalControlApplication::LocalControlApplication (std::vector<std::string>* rule
     ConnectLocalToGlobal ();
 }
 
-//    LocalControlApplication default destructor.
+// LocalControlApplication default destructor.
 LocalControlApplication::~LocalControlApplication ()
 {
-    std::cout << "LocalControlApplication: exiting ...\n";
+    Logging::log_info ("LocalControlApplication: exiting ...\n");
 }
 
+////////////////////////////////////////////
+///////// Register new sessions ////////////
+////////////////////////////////////////////
+
+//    RegisterDataPlaneSession call. (...)
+void LocalControlApplication::register_stage_session (int socket_t)
+{
+    Logging::log_debug ("RegisterDataPlaneSession -- DataPlaneStage-" + std::to_string (socket_t));
+
+    pending_data_plane_sessions_lock_.lock ();
+    pending_data_sessions_.emplace (std::make_unique<HandshakeSession> (socket_t));
+
+    pending_data_plane_sessions_lock_.unlock ();
+
+    this->m_pending_data_plane_sessions.fetch_add (1);
+}
+
+////////////////////////////////////////////
+/////////////// Feedback Loop //////////////
+////////////////////////////////////////////
+
+// operator call. (...)
+void LocalControlApplication::operator() ()
+{
+    this->execute_feedback_loop ();
+}
+
+void LocalControlApplication::stop_feedback_loop ()
+{
+    server->Shutdown ();
+    working_application_ = false;
+    while (!pending_data_sessions_.empty ()) {
+        pending_data_sessions_.front ()->RemoveSession ();
+        pending_data_sessions_.pop ();
+    }
+    for (auto const& data_session : data_sessions_) {
+        data_session.second->RemoveSession ();
+    }
+}
+
+// execute_feedback_loop call.  Executes feedback loop.
+void LocalControlApplication::execute_feedback_loop ()
+{
+    Logging::log_debug ("LocalControlApplication::ExecuteFeedbackLoop");
+    PStatus status = PStatus::Error ();
+    working_application_ = true;
+
+    // wait for a data plane stage to connect
+    while (working_application_.load () && this->m_pending_data_plane_sessions.load () == 0) {
+        std::this_thread::sleep_for (milliseconds (100));
+    }
+
+    // while existing data plane stage connections (active or pending), execute the feedback loop
+    while (working_application_.load ()
+        && (this->m_pending_data_plane_sessions.load () > 0
+            || this->m_active_data_plane_sessions.load () > 0)) {
+        // if exists pending sessions, perform the Session Handshake
+        while (this->m_pending_data_plane_sessions.load () > 0) {
+            // execute session handshake
+            handle_data_plane_sessions ();
+            std::this_thread::sleep_for (milliseconds (100));
+        }
+
+        this->sleep ();
+    }
+
+    working_application_ = false;
+
+    // log message and end control loop
+    Logging::log_info ("Exiting. No active connections.");
+    _exit (EXIT_SUCCESS);
+}
+
+////////////////////////////////////////////
+//////////////// Sleep /////////////////////
+////////////////////////////////////////////
+
+// sleep call. Used to make control application main thread wait for the next loop.
+void LocalControlApplication::sleep ()
+{
+    std::this_thread::sleep_for (microseconds (this->m_feedback_loop_sleep_time));
+}
+
+//////////////////////////////////////////////
+/// Local to core controller communication ///
+//////////////////////////////////////////////
+
+// RunGlobalToLocalServer call. Execute server to core controller communicate to local controller.
 void LocalControlApplication::RunGlobalToLocalServer ()
 {
-
     ServerBuilder builder;
     // Listen on the given address without any authentication mechanism.
     builder.AddListeningPort (local_address, grpc::InsecureServerCredentials ());
@@ -82,7 +168,7 @@ void LocalControlApplication::RunGlobalToLocalServer ()
     builder.RegisterService (this);
     // Finally assemble the server.
     server = builder.BuildAndStart ();
-    std::cout << "Server listening on " << local_address << std::endl;
+    Logging::log_info ("LocalControlApplication: Server listening on " + local_address);
 
     // Wait for the server to shutdown.
     // Note that some other thread must be responsible for shutting down the server for this call to
@@ -106,18 +192,19 @@ Status LocalControlApplication::ConnectLocalToGlobal ()
     // The actual RPC.
     Status status = core_stub_->ConnectLocalToGlobal (&context, request, &reply);
 
-    std::cout << "Connect request sent to global controller" << std::endl;
+    Logging::log_info (
+        "LocalControlApplication: Connect local controller request sent to global controller");
 
     if (status.ok ()) {
-        std::cout << reply.message () << std::endl;
+        Logging::log_info ("LocalControlApplication: Connection successful");
     } else {
-        std::cout << status.error_code () << ": " << status.error_message () << std::endl;
-        std::cout << "RPC failed" << std::endl;
+        Logging::log_info ("LocalControlApplication: Connection failed");
+        // std::cout << status.error_code () << ": " << status.error_message () << std::endl;
     }
-
     return status;
 }
 
+// ConnectStageToGlobal call. Connect data plane stage  to core controller.
 Status LocalControlApplication::ConnectStageToGlobal (const std::string& stage_name,
     const std::string& stage_env,
     const std::string& stage_user)
@@ -139,63 +226,331 @@ Status LocalControlApplication::ConnectStageToGlobal (const std::string& stage_n
     // The actual RPC.
     Status status = core_stub_->ConnectStageToGlobal (&context, request, &reply);
 
-    std::cout << "Connect stage request sent to global controller" << std::endl;
+    Logging::log_info ("LocalControlApplication: Connect stage request sent to global controller");
 
     if (status.ok ()) {
-        std::cout << reply.message () << std::endl;
+        Logging::log_info ("LocalControlApplication: Connection successful");
     } else {
-        std::cout << status.error_code () << ": " << status.error_message () << std::endl;
-        std::cout << "RPC failed" << std::endl;
+        Logging::log_info ("LocalControlApplication: Connection failed");
+        // std::cout << status.error_code () << ": " << status.error_message () << std::endl;
     }
 
     return status;
 }
 
-//    Initialize call. (...)
+//////////////////////////////////////////////
+/// Core to local controller communication ///
+//////////////////////////////////////////////
+
+// LocalHandshake call. Local controller handshake from core controller.
+Status LocalControlApplication::LocalHandshake (ServerContext* context,
+    const controllers_grpc_interface::LocalSimplifiedHandshakeRaw* request,
+    controllers_grpc_interface::ACK* reply)
+{
+    Logging::log_info ("LocalControlApplication: Received local handshake from core controller");
+
+    for (auto& rule : request->rules ()) {
+        Logging::log_info ("LocalControlApplication: " + rule + "\n");
+
+        housekeeping_rules_ptr_->push_back (rule);
+
+        std::vector<std::string> rule_tokens {};
+        parse_rule (rule, &rule_tokens, '|');
+
+        if (rule_tokens[2].compare ("create_channel") == 0) {
+            auto channel_object = std::make_pair (std::stoi (rule_tokens[3]), 1);
+
+            auto channels_objects = operation_to_channel_object.find (rule_tokens[6]);
+
+            if (channels_objects == operation_to_channel_object.end ()) {
+
+                std::vector<std::pair<int, int>> new_channels_objects;
+                new_channels_objects.push_back (channel_object);
+                operation_to_channel_object.emplace (rule_tokens[6], new_channels_objects);
+            } else {
+                channels_objects->second.push_back (channel_object);
+            }
+        }
+    }
+
+    reply->set_m_message (1);
+    return Status::OK;
+}
+
+// StageHandshake call. Stage handshake from core controller.
+Status LocalControlApplication::StageHandshake (ServerContext* context,
+    const controllers_grpc_interface::ControlOperation* request,
+    controllers_grpc_interface::StageSimplifiedHandshakeRaw* reply)
+{
+    Logging::log_info ("LocalControlApplication: Received stage handshake from core controller");
+    return Status::OK;
+}
+
+Status LocalControlApplication::MarkStageReady (ServerContext* context,
+    const controllers_grpc_interface::StageReadyRaw* request,
+    controllers_grpc_interface::ACK* reply)
+{
+    Logging::log_info ("LocalControlApplication: Mark stage ready " + request->stage_name_env ()
+        + " from core controller");
+
+    auto stage = preparing_data_sessions_.extract (request->stage_name_env ());
+    data_sessions_.insert (std::move (stage));
+
+    preparing_data_sessions_.erase (request->stage_name_env ());
+
+    reply->set_m_message (1);
+    return Status::OK;
+}
+
+// CreateEnforcementRule call. Create enforcement from core controller.
+Status LocalControlApplication::CreateEnforcementRule (ServerContext* context,
+    const controllers_grpc_interface::EnforcementRules* request,
+    controllers_grpc_interface::ACK* reply)
+{
+    Logging::log_info (
+        "LocalControlApplication: Received create enforcement rule from core controller");
+
+    Status status = Status::OK;
+
+    for (auto& operation_rates : request->operation_rules ()) {
+
+        for (auto& env_rate : operation_rates.second.env_rates ()) {
+
+            auto existing_channels = operation_to_channel_object.find (operation_rates.first);
+
+            if (existing_channels == operation_to_channel_object.end ()) {
+                reply->set_m_message (0);
+                status = Status::CANCELLED;
+            } else {
+
+                int total_channels = existing_channels->second.size ();
+                long limit_per_channel = 0;
+                if (total_channels > 0) {
+                    limit_per_channel = std::floor (env_rate.second / total_channels);
+                }
+
+                for (auto& channel_objects : existing_channels->second) {
+
+                    int channel_id = channel_objects.first;
+                    int enforcement_object_id = channel_objects.second;
+                    // TO-DO: Remove this
+                    if (channel_id == 2000) {
+                        std::string enforcement_rule = std::to_string (CREATE_ENF_RULE) + "|"
+                            + std::to_string (operation_rates.second.m_rule_id ()) + "|" // rule-id
+                            + std::to_string (channel_id) + "|"
+                            + std::to_string (enforcement_object_id) + "|" + "drl" + "|" + "rate"
+                            + "|" + std::to_string (limit_per_channel);
+
+                        status = LocalPassthru (operation_rates.second.m_stage_name () + "+"
+                                + std::to_string (env_rate.first),
+                            enforcement_rule);
+
+                        if (status.ok ()) {
+                            reply->set_m_message (1);
+                        } else {
+                            // reply->set_m_message(0);
+                            // return status;
+                            reply->set_m_message (1);
+                            return Status::OK;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return status;
+}
+
+// CollectGlobalStatistics call. Collect Statistics request from core controller.
+Status LocalControlApplication::CollectGlobalStatistics (ServerContext* context,
+    const controllers_grpc_interface::ControlOperation* request,
+    controllers_grpc_interface::StatsGlobalMap* reply)
+{
+    Logging::log_info ("LocalControlApplication: Received collect statistics "
+                       "request from core controller");
+
+    std::string rule = std::to_string (COLLECT_DETAILED_STATS) + "|"
+        + std::to_string (COLLECT_GLOBAL_STATS) + "|";
+
+    // submit requests to each DataPlaneSession's submission_queue
+    for (auto const& data_session : data_sessions_) {
+        // put request on DataPlaneSession::submission_queue
+        data_session.second->SubmitRule (rule);
+    }
+
+    auto& stats_map = *reply->mutable_gl_stats ();
+
+    std::list<std::string> sessions_to_delete;
+
+    // collect requests from each DataPlaneSession's completion_queue
+    for (auto const& data_session : data_sessions_) {
+
+        // wait for request to be on DataPlaneSession::completion_queue
+        std::unique_ptr<StageResponse> stats_ptr = data_session.second->GetResult ();
+
+        // verify if pointer is valid
+        if (stats_ptr != nullptr) {
+            // convert StageResponse unique-ptr to StageResponseStatsKVS
+            auto* response_ptr = dynamic_cast<StageResponseStat*> (stats_ptr.get ());
+
+            if (response_ptr->get_total_rate () == -1) {
+                Logging::log_info ("LocalControlApplication: CollectGlobalStatistics ->"
+                                   "Connection error; disconnecting from instance-"
+                    + data_session.first);
+                this->m_active_data_plane_sessions.fetch_sub (1);
+                sessions_to_delete.push_back (data_session.first);
+            }
+
+            std::string name = data_session.first;
+
+            controllers_grpc_interface::StatsGlobal stats_global;
+
+            stats_global.set_m_metadata_total_rate (response_ptr->get_total_rate ());
+
+            stats_map[name] = stats_global;
+
+        } else {
+            Logging::log_info ("LocalControlApplication: CollectGlobalStatistics ->"
+                               "Connection error; disconnecting from instance-"
+                + data_session.first);
+            this->m_active_data_plane_sessions.fetch_sub (1);
+        }
+    }
+
+    for (auto const& data_session : sessions_to_delete) {
+        Logging::log_info (
+            "LocalControlApplication: Deleting session in data_sessions_:" + data_session);
+        data_sessions_.at (data_session)->RemoveSession ();
+        data_sessions_.erase (data_session);
+    }
+
+    return Status::OK;
+}
+
+// CollectGlobalStatisticsAggregated call. Collect Statistics request from core controller.
+// It aggregates the statistics from several rounds.
+Status LocalControlApplication::CollectGlobalStatisticsAggregated (ServerContext* context,
+    const controllers_grpc_interface::ControlOperation* request,
+    controllers_grpc_interface::StatsGlobalMap* reply)
+{
+    Logging::log_info ("LocalControlApplication: Received collect aggregated statistics "
+                       "request from core controller");
+
+    std::string rule = std::to_string (COLLECT_DETAILED_STATS) + "|"
+        + std::to_string (COLLECT_GLOBAL_STATS) + "|";
+
+    auto& stats_map = *reply->mutable_gl_stats ();
+
+    for (int i = 0; i < COLLECT_ROUNDS; i++) {
+
+        auto start = std::chrono::steady_clock::now ();
+
+        // submit requests to each DataPlaneSession's submission_queue
+        for (auto const& data_session : data_sessions_) {
+            // put request on DataPlaneSession::submission_queue
+            data_session.second->SubmitRule (rule);
+        }
+
+        std::list<std::string> sessions_to_delete;
+
+        // collect requests from each DataPlaneSession's completion_queue
+        for (auto const& data_session : data_sessions_) {
+
+            // wait for request to be on DataPlaneSession::completion_queue
+            std::unique_ptr<StageResponse> stats_ptr = data_session.second->GetResult ();
+
+            // verify if pointer is valid
+            if (stats_ptr != nullptr) {
+                // convert StageResponse unique-ptr to StageResponseStatsKVS
+                auto* response_ptr = dynamic_cast<StageResponseStat*> (stats_ptr.get ());
+
+                if (response_ptr->get_total_rate () == -1) {
+                    Logging::log_info (
+                        "LocalControlApplication: CollectGlobalStatisticsAggregated ->"
+                        "Connection error; disconnecting from instance-"
+                        + data_session.first);
+                    this->m_active_data_plane_sessions.fetch_sub (1);
+                    sessions_to_delete.push_back (data_session.first);
+                } else {
+                    std::string name = data_session.first;
+
+                    if (!stats_map.contains (name)) {
+                        controllers_grpc_interface::StatsGlobal stats_global;
+                        stats_global.set_m_metadata_total_rate (response_ptr->get_total_rate ());
+                        stats_map[name] = stats_global;
+                    } else {
+                        auto stats_global = stats_map.at (name);
+                        double previous_value = stats_global.m_metadata_total_rate ();
+                        stats_global.set_m_metadata_total_rate (
+                            (double)(response_ptr->get_total_rate () + previous_value * i)
+                            / (i + 1));
+                        stats_map[name] = stats_global;
+                    }
+                }
+
+            } else {
+                Logging::log_info ("LocalControlApplication: CollectGlobalStatisticsAggregated ->"
+                                   "Connection error; disconnecting from instance-"
+                    + data_session.first);
+                this->m_active_data_plane_sessions.fetch_sub (1);
+            }
+        }
+
+        for (auto const& data_session : sessions_to_delete) {
+            controllers_grpc_interface::StatsGlobal stats_global;
+            stats_global.set_m_metadata_total_rate (-1);
+            stats_map[data_session] = stats_global;
+            Logging::log_info (
+                "LocalControlApplication: Deleting session in data_sessions_:" + data_session);
+            data_sessions_.erase (data_session);
+        }
+
+        auto end = std::chrono::steady_clock::now ();
+
+        if (i < 4) {
+            std::this_thread::sleep_for (microseconds (this->m_feedback_loop_sleep_time
+                - std::chrono::duration_cast<std::chrono::microseconds> (end - start).count ()));
+        }
+    }
+
+    return Status::OK;
+}
+
+////////////////////////////////////////////
+//////////// Auxiliary Functions ///////////
+////////////////////////////////////////////
+
+//  initialize call. Initialize control application.
 void LocalControlApplication::initialize ()
 { }
 
-//    RegisterDataPlaneSession call. (...)
-void LocalControlApplication::register_stage_session (int socket_t)
-{
-    Logging::log_debug ("RegisterDataPlaneSession -- DataPlaneStage-" + std::to_string (socket_t));
-
-    pending_data_plane_sessions_lock_.lock();
-    pending_data_sessions_.emplace (std::make_unique<HandshakeSession> (socket_t));
-
-    pending_data_plane_sessions_lock_.unlock();
-
-    this->m_pending_data_plane_sessions.fetch_add (1);
-
-}
-
-// stage_handshake call. (...)
+// handle_data_plane_sessions call. Processes pending data plane sessions.
 void LocalControlApplication::handle_data_plane_sessions ()
 {
-    if (!pending_data_sessions_.empty()){
-        Logging::log_debug (
-            "LocalControlApplication: Data Plane Session Handshake");
+    if (!pending_data_sessions_.empty ()) {
+        Logging::log_debug ("LocalControlApplication: Data Plane Session Handshake");
 
         PStatus status = PStatus::Error ();
 
         pending_data_plane_sessions_lock_.lock ();
-        auto handshake_session = std::move(pending_data_sessions_.front ());
+        auto handshake_session = std::move (pending_data_sessions_.front ());
         pending_data_sessions_.pop ();
         pending_data_plane_sessions_lock_.unlock ();
 
         m_pending_data_plane_sessions.fetch_sub (1);
 
         /*Start Session*/
-        std::thread session_thread_t = std::thread (&HandshakeSession::StartSession,
-            handshake_session.get ());
+        std::thread session_thread_t
+            = std::thread (&HandshakeSession::StartSession, handshake_session.get ());
         session_thread_t.detach ();
 
         // invoke CallStageHandshake routine to acknowledge the stage's identifier
         //<stage_name, stage_env, stage_user>
         std::unique_ptr<StageInfo> stage_identifier
-            = this->call_stage_handshake (handshake_session.get());
+            = this->call_stage_handshake (handshake_session.get ());
 
-        handshake_session->RemoveSession();
+        handshake_session->RemoveSession ();
 
         if (!stage_identifier->m_stage_name.empty ()) {
             // submit housekeeping rules to the data plane stage
@@ -204,25 +559,21 @@ void LocalControlApplication::handle_data_plane_sessions ()
 
             int installed_rules = this->submit_housekeeping_rules (stage_env);
 
-            Logging::log_debug ("installed rules ... (" + std::to_string (installed_rules) + ") in ("
-                + stage_env + ")");
+            Logging::log_debug ("LocalControlApplication: installed rules ... ("
+                + std::to_string (installed_rules) + ") in (" + stage_env + ")");
 
-            if (installed_rules == housekeeping_rules_ptr_->size() && mark_stage_ready (stage_env).isOk()) {
+            if (installed_rules == housekeeping_rules_ptr_->size ()
+                && mark_stage_ready (stage_env).isOk ()) {
 
                 Logging::log_debug ("LocalControlApplication: Connecting Stage to Global ("
                     + stage_identifier->m_stage_name + ")");
-
-
-
 
                 Status status = ConnectStageToGlobal (stage_identifier->m_stage_name,
                     stage_identifier->m_stage_env,
                     stage_identifier->m_stage_user);
 
-                if (status.ok()) {
+                if (status.ok ()) {
                     m_active_data_plane_sessions.fetch_add (1);
-                    // index++;
-                    // this->m_pending_data_plane_sessions.fetch_sub (1);
 
                     Logging::log_debug ("DataPlaneSessionHandshake with DataPlaneStage-"
                         + stage_identifier->m_stage_name + " successfully established.");
@@ -244,73 +595,10 @@ void LocalControlApplication::handle_data_plane_sessions ()
     }
 }
 
-// operator call. (...)
-void LocalControlApplication::operator() ()
-{
-    this->execute_feedback_loop ();
-}
-
-void LocalControlApplication::stop_feedback_loop ()
-{
-    server->Shutdown ();
-    working_application_ = false;
-    while(!pending_data_sessions_.empty()){
-        pending_data_sessions_.front()->RemoveSession();
-        pending_data_sessions_.pop();
-    }
-    for (auto const& data_session : data_sessions_) {
-        data_session.second->RemoveSession ();
-    }
-}
-
-// execute_feedback_loop call. (...)
-void LocalControlApplication::execute_feedback_loop ()
-{
-    Logging::log_debug ("LocalControlApplication::ExecuteFeedbackLoop");
-    PStatus status = PStatus::Error ();
-    int index = 0;
-
-    working_application_ = true;
-
-    // wait for a data plane stage to connect
-    while (working_application_.load () && this->m_pending_data_plane_sessions.load () == 0) {
-        std::this_thread::sleep_for (milliseconds (100));
-    }
-
-    // while existing data plane stage connections (active or pending), execute the feedback loop
-    // while (working_application_.load() && (this->m_pending_data_plane_sessions.load () +
-    // this->m_active_data_plane_sessions.load ()) > 0) {
-    while (working_application_.load ()
-        && (this->m_pending_data_plane_sessions.load () > 0
-            || this->m_active_data_plane_sessions.load () > 0)) {
-        // if exists pending sessions, perform the Session Handshake
-        while (this->m_pending_data_plane_sessions.load () > 0) {
-            // execute session handshake
-            handle_data_plane_sessions ();
-
-            index++;
-
-            std::this_thread::sleep_for (milliseconds (100));
-        }
-
-        this->sleep ();
-    }
-
-    Logging::log_info ("Working application: " + std::to_string(working_application_.load()));
-    Logging::log_info ("Working m_pending_data_plane_sessions: " + std::to_string(m_pending_data_plane_sessions.load()));
-    Logging::log_info ("Working m_active_data_plane_sessions: " + std::to_string(m_active_data_plane_sessions.load()));
-
-
-    working_application_ = false;
-
-    // log message and end control loop
-    Logging::log_info ("Exiting. No active connections.");
-    _exit (EXIT_SUCCESS);
-}
-
-// call_stage_handshake call. (...)
-
-std::unique_ptr<StageInfo> LocalControlApplication::call_stage_handshake (HandshakeSession* handshake_session)
+// call_stage_handshake call.  Submits STAGE_HANDSHAKE rule and housekeeping rules to data plane
+// stage.
+std::unique_ptr<StageInfo> LocalControlApplication::call_stage_handshake (
+    HandshakeSession* handshake_session)
 {
     // create STAGE_HANDSHAKE request
     std::string rule = std::to_string (STAGE_HANDSHAKE) + "|";
@@ -318,23 +606,18 @@ std::unique_ptr<StageInfo> LocalControlApplication::call_stage_handshake (Handsh
 
     handshake_session->SubmitRule (rule);
 
-    std::cout << "Submitter Rule"
-              << "\n";
-
     // wait for request to be on DataPlaneSession::completion_queue
     std::unique_ptr<StageResponse> response_obj = handshake_session->GetResult ();
     // convert StageResponse to Handshake object
-    std::cout << "Response Rule"
-              << "\n";
 
     auto* handshake_ptr = dynamic_cast<StageResponseHandshake*> (response_obj.get ());
 
     std::string stage_name_env
         = handshake_ptr->get_stage_name () + "+" + handshake_ptr->get_stage_env ();
 
-    Logging::log_info ("LocalControlApplication:" + stage_name_env);
+    Logging::log_info ("LocalControlApplication: Stage Handshake with " + stage_name_env);
     // register instance index to stage_name_env
-    std::unique_ptr<StageInfo> all_stage_info = std::make_unique<StageInfo>();
+    std::unique_ptr<StageInfo> all_stage_info = std::make_unique<StageInfo> ();
 
     if (handshake_ptr != nullptr) {
 
@@ -342,11 +625,9 @@ std::unique_ptr<StageInfo> LocalControlApplication::call_stage_handshake (Handsh
                            "data plane stage.");
 
         std::string socket_info;
-
         PStatus status = fill_socket_info (handshake_ptr, socket_info);
-        // const char *socket_name = stream.str().c_str();
 
-        Logging::log_info ("StageHandshake <" + socket_info + ">");
+        Logging::log_info ("LocalControlApplication: StageHandshake <" + socket_info + ">");
 
         int port = -1;
 
@@ -366,26 +647,22 @@ std::unique_ptr<StageInfo> LocalControlApplication::call_stage_handshake (Handsh
         // convert StageResponse to Handshake object
         // auto* handshake_ptr = dynamic_cast<StageResponseACK*> (response_obj.get ());
 
-        /*TODO: Colocar a verificar se está tudo bem*/
-
-        all_stage_info->m_stage_name = handshake_ptr->get_stage_name();
-        all_stage_info->m_stage_env = handshake_ptr->get_stage_env();
-        all_stage_info->m_stage_user = handshake_ptr->get_stage_user();
+        all_stage_info->m_stage_name = handshake_ptr->get_stage_name ();
+        all_stage_info->m_stage_env = handshake_ptr->get_stage_env ();
+        all_stage_info->m_stage_user = handshake_ptr->get_stage_user ();
 
         // Logging message
-        Logging::log_info ("StageHandshake <" + handshake_ptr->get_stage_name () + ", "
+        Logging::log_info ("LocalControlApplication: StageHandshake <"
+            + handshake_ptr->get_stage_name () + ", "
             + std::to_string (handshake_ptr->get_stage_pid ()) + ", "
             + std::to_string (handshake_ptr->get_stage_ppid ()) + ">");
-
     }
-
-
 
     // return const value of the stage identifier's name
     return all_stage_info;
 }
 
-// submit_housekeeping_rules call. (...)
+// submit_housekeeping_rules call. Submits housekeeping rules to data plane stage.
 int LocalControlApplication::submit_housekeeping_rules (const std::string& stage_name_env) const
 {
     PStatus status = PStatus::Error ();
@@ -424,16 +701,14 @@ int LocalControlApplication::submit_housekeeping_rules (const std::string& stage
     return valid_housekeeping_rules;
 }
 
-// submit_housekeeping_rules call. (...)
+// mark_stage_ready call. Submits STAGE_READY to data plane stage.
 PStatus LocalControlApplication::mark_stage_ready (const std::string& stage_name_env) const
 {
     PStatus status = PStatus::Error ();
-    int rule_counter = 0;
 
     std::string rule = std::to_string (STAGE_READY) + "|";
 
     status = preparing_data_sessions_.at (stage_name_env)->SubmitRule (rule);
-
 
     std::unique_ptr<StageResponse> response = nullptr;
     if (status.isOk ()) {
@@ -444,181 +719,14 @@ PStatus LocalControlApplication::mark_stage_ready (const std::string& stage_name
         // validate data plane stage response
         if (ack_ptr != nullptr) {
             if (ack_ptr->ACKValue () == static_cast<int> (AckCode::ok)) {
-                status = PStatus::OK();
+                status = PStatus::OK ();
             }
         }
-
     }
     return status;
 }
 
-// sleep call. (...)
-void LocalControlApplication::sleep ()
-{
-    std::this_thread::sleep_for (microseconds (this->m_feedback_loop_sleep_time));
-}
-
-void LocalControlApplication::parse_rule (const std::string& rule,
-    std::vector<std::string>* tokens,
-    const char c)
-{
-    size_t start;
-    size_t end = 0;
-
-    while ((start = rule.find_first_not_of (c, end)) != std::string::npos) {
-        end = rule.find (c, start);
-        tokens->push_back (rule.substr (start, end - start));
-    }
-}
-
-/*Requests from the CORE controller*/
-Status LocalControlApplication::LocalHandshake (ServerContext* context,
-    const controllers_grpc_interface::LocalSimplifiedHandshakeRaw* request,
-    controllers_grpc_interface::ACK* reply)
-{
-    std::cout << "xxxxxxxxLocal Handssssshake from core controller" << std::endl;
-
-    for (auto& rule : request->rules ()) {
-
-        std::cout << "Received local handshake from core controller: " << rule << std::endl;
-        housekeeping_rules_ptr_->push_back (rule);
-
-        std::vector<std::string> rule_tokens {};
-        parse_rule (rule, &rule_tokens, '|');
-
-        if (rule_tokens[2].compare ("create_channel") == 0) {
-            auto channel_object = std::make_pair (std::stoi (rule_tokens[3]), 1);
-
-            auto channels_objects = operation_to_channel_object.find (rule_tokens[6]);
-
-            if (channels_objects == operation_to_channel_object.end ()) {
-
-                std::vector<std::pair<int, int>> new_channels_objects;
-                new_channels_objects.push_back (channel_object);
-                operation_to_channel_object.emplace (rule_tokens[6], new_channels_objects);
-            } else {
-                channels_objects->second.push_back (channel_object);
-            }
-        }
-    }
-
-    reply->set_m_message (1);
-    return Status::OK;
-}
-
-Status LocalControlApplication::StageHandshake (ServerContext* context,
-    const controllers_grpc_interface::ControlOperation* request,
-    controllers_grpc_interface::StageSimplifiedHandshakeRaw* reply)
-{
-    std::cout << "Stage Handshake at core controller" << std::endl;
-    reply->set_m_stage_env ("tensorflow-1");
-    // std::cout << "Received request from local controller at address:"<< request->user_address()
-    // << std::endl; EnqueueAddressInRequestQueue(request); reply->set_message(prefix +
-    // request->user_address());
-    return Status::OK;
-}
-
-Status LocalControlApplication::MarkStageReady (ServerContext* context,
-    const controllers_grpc_interface::StageReadyRaw* request,
-    controllers_grpc_interface::ACK* reply)
-{
-    //   std::cout <<"MarkStageReady from core controller" << std::endl;
-
-    Logging::log_debug (
-        "LocalControlApplication: mark stage ready (" + request->stage_name_env () + ")");
-
-    std::string rule = std::to_string (STAGE_READY) + "|";
-    // put request on DataPlaneSession::submission_queue
-    // std::cout << "preparing_data_sessions_ in MarkStageReady: "  <<
-    // preparing_data_sessions_.at(request->stage_name_env()).get() << std::endl;
-
-    auto stage = preparing_data_sessions_.extract (request->stage_name_env ());
-    data_sessions_.insert (std::move (stage));
-
-    preparing_data_sessions_.erase (request->stage_name_env ());
-    // td::cout << "data_sessions_ in MarkStageReady: "  <<
-    // data_sessions_.at(request->stage_name_env()).get() << std::endl;
-
-    // Logging::log_debug ("1LocalControlApplication: mark stage ready (" +
-    // request->stage_name_env() + ")");
-
-    if (data_sessions_.find (request->stage_name_env ()) == data_sessions_.end ()) {
-        Logging::log_debug ("Not_Found_2LocalControlApplication: mark stage ready ("
-            + request->stage_name_env () + ")");
-
-    } else {
-
-        Logging::log_debug (
-            "Found_LocalControlApplication: mark stage ready (" + request->stage_name_env () + ")");
-
-        //   // found
-    }
-    // verify if pointer is valid
-    reply->set_m_message (1);
-    return Status::OK;
-
-}
-
-
-
-Status LocalControlApplication::CreateEnforcementRule (ServerContext* context,
-    const controllers_grpc_interface::EnforcementRules* request,
-    controllers_grpc_interface::ACK* reply)
-{
-    std::cout << "CreateEnforcementRule from core controller" << std::endl;
-
-    Status status = Status::OK;
-
-    for (auto& operation_rates : request->operation_rules ()) {
-
-        for (auto& env_rate : operation_rates.second.env_rates ()) {
-
-            auto existing_channels = operation_to_channel_object.find (operation_rates.first);
-
-            if (existing_channels == operation_to_channel_object.end ()) {
-                reply->set_m_message (0);
-                status = Status::CANCELLED;
-            } else {
-
-                int total_channels = existing_channels->second.size ();
-                long limit_per_channel = 0;
-                if (total_channels > 0) {
-                    limit_per_channel = std::floor (env_rate.second / total_channels);
-                }
-
-                for (auto& channel_objects : existing_channels->second) {
-
-                    int channel_id = channel_objects.first;
-                    int enforcement_object_id = channel_objects.second;
-                    // TO-DO: Porque é que tenho isto?
-                    if (channel_id == 2000) {
-                        std::string enforcement_rule = std::to_string (CREATE_ENF_RULE) + "|"
-                            + std::to_string (operation_rates.second.m_rule_id ()) + "|" // rule-id
-                            + std::to_string (channel_id) + "|"
-                            + std::to_string (enforcement_object_id) + "|" + "drl" + "|" + "rate"
-                            + "|" + std::to_string (limit_per_channel);
-
-                        status = LocalPassthru (operation_rates.second.m_stage_name () + "+"
-                                + std::to_string (env_rate.first),
-                            enforcement_rule);
-
-                        if (status.ok ()) {
-                            reply->set_m_message (1);
-                        } else {
-                            // reply->set_m_message(0);
-                            // return status;
-                            reply->set_m_message (1);
-                            return Status::OK;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    return status;
-}
-
+// LocalPassthru call. General function to submit rules to data plane stages.
 Status LocalControlApplication::LocalPassthru (const std::string stage_name_env,
     const std::string rule)
 {
@@ -632,9 +740,6 @@ Status LocalControlApplication::LocalPassthru (const std::string stage_name_env,
         // convert StageResponse unique-ptr to StageResponseStatsKVS
         auto* response_ptr = dynamic_cast<StageResponseACK*> (ack_ptr.get ());
 
-        Logging::log_debug ("ACK response :: " + std::to_string (response_ptr->ResponseType ())
-            + " -- " + response_ptr->toString ());
-
         if (response_ptr->ACKValue () == 1) {
             return Status::OK;
         } else {
@@ -645,157 +750,7 @@ Status LocalControlApplication::LocalPassthru (const std::string stage_name_env,
     return Status::CANCELLED;
 }
 
-Status LocalControlApplication::CollectGlobalStatistics (ServerContext* context,
-    const controllers_grpc_interface::ControlOperation* request,
-    controllers_grpc_interface::StatsGlobalMap* reply)
-{
-    Logging::log_debug ("CollectGlobalStatistics from core controller");
-
-    std::string rule = std::to_string (COLLECT_DETAILED_STATS) + "|"
-        + std::to_string (COLLECT_GLOBAL_STATS) + "|";
-
-    // submit requests to each DataPlaneSession's submission_queue
-    for (auto const& data_session : data_sessions_) {
-        // put request on DataPlaneSession::submission_queue
-        data_session.second->SubmitRule (rule);
-    }
-
-    auto& stats_map = *reply->mutable_gl_stats ();
-
-    std::list<std::string> sessions_to_delete;
-
-    // collect requests from each DataPlaneSession's completion_queue
-    for (auto const& data_session : data_sessions_) {
-
-        // wait for request to be on DataPlaneSession::completion_queue
-        std::unique_ptr<StageResponse> stats_ptr = data_session.second->GetResult ();
-
-        // verify if pointer is valid
-        if (stats_ptr != nullptr) {
-            // convert StageResponse unique-ptr to StageResponseStatsKVS
-            auto* response_ptr = dynamic_cast<StageResponseStat*> (stats_ptr.get ());
-
-            if (response_ptr->get_total_rate () == -1) {
-                std::cout << ">>> response_ptr->get_total_rate() == -1" << std::endl;
-                Logging::log_debug (
-                    "collect_global_statistics: Connection error; disconnecting from instance-"
-                    + data_session.first);
-                this->m_active_data_plane_sessions.fetch_sub (1);
-                sessions_to_delete.push_back (data_session.first);
-            }
-
-            std::string name = data_session.first;
-
-            controllers_grpc_interface::StatsGlobal stats_global;
-
-            stats_global.set_m_metadata_total_rate (response_ptr->get_total_rate ());
-
-            stats_map[name] = stats_global;
-
-        } else {
-            std::cout << "else" << std::endl;
-            Logging::log_debug (
-                "collect_statistics_global: Connection error; disconnecting from instance-"
-                + data_session.first);
-            this->m_active_data_plane_sessions.fetch_sub (1);
-        }
-    }
-
-    for (auto const& data_session : sessions_to_delete) {
-        Logging::log_debug ("Deleting session in data_sessions_:" + data_session);
-        data_sessions_.at (data_session)->RemoveSession ();
-        data_sessions_.erase (data_session);
-    }
-
-    return Status::OK;
-}
-
-Status LocalControlApplication::CollectGlobalStatisticsAggregated (ServerContext* context,
-    const controllers_grpc_interface::ControlOperation* request,
-    controllers_grpc_interface::StatsGlobalMap* reply)
-{
-    Logging::log_debug ("CollectGlobalStatistics from core controller");
-
-    std::string rule = std::to_string (COLLECT_DETAILED_STATS) + "|"
-        + std::to_string (COLLECT_GLOBAL_STATS) + "|";
-
-    auto& stats_map = *reply->mutable_gl_stats ();
-
-    for (int i = 0; i < COLLECT_ROUNDS; i++) {
-
-        auto start = std::chrono::steady_clock::now ();
-
-        // submit requests to each DataPlaneSession's submission_queue
-        for (auto const& data_session : data_sessions_) {
-            // put request on DataPlaneSession::submission_queue
-            data_session.second->SubmitRule (rule);
-        }
-
-        std::list<std::string> sessions_to_delete;
-
-        // collect requests from each DataPlaneSession's completion_queue
-        for (auto const& data_session : data_sessions_) {
-
-            // wait for request to be on DataPlaneSession::completion_queue
-            std::unique_ptr<StageResponse> stats_ptr = data_session.second->GetResult ();
-
-            // verify if pointer is valid
-            if (stats_ptr != nullptr) {
-                // convert StageResponse unique-ptr to StageResponseStatsKVS
-                auto* response_ptr = dynamic_cast<StageResponseStat*> (stats_ptr.get ());
-
-                if (response_ptr->get_total_rate () == -1) {
-                    std::cout << ">>> response_ptr->get_total_rate() == -1" << std::endl;
-                    Logging::log_debug (
-                        "collect_global_statistics: Connection error; disconnecting from instance-"
-                        + data_session.first);
-                    this->m_active_data_plane_sessions.fetch_sub (1);
-                    sessions_to_delete.push_back (data_session.first);
-                } else {
-                    std::string name = data_session.first;
-
-                    if (!stats_map.contains (name)) {
-                        controllers_grpc_interface::StatsGlobal stats_global;
-                        stats_global.set_m_metadata_total_rate (response_ptr->get_total_rate ());
-                        stats_map[name] = stats_global;
-                    } else {
-                        auto stats_global = stats_map.at (name);
-                        double previous_value = stats_global.m_metadata_total_rate ();
-                        stats_global.set_m_metadata_total_rate (
-                            (double)(response_ptr->get_total_rate () + previous_value * i)
-                            / (i + 1));
-                        stats_map[name] = stats_global;
-                    }
-                }
-
-            } else {
-                std::cout << "else" << std::endl;
-                Logging::log_debug (
-                    "collect_statistics_global: Connection error; disconnecting from instance-"
-                    + data_session.first);
-                this->m_active_data_plane_sessions.fetch_sub (1);
-            }
-        }
-
-        for (auto const& data_session : sessions_to_delete) {
-            controllers_grpc_interface::StatsGlobal stats_global;
-            stats_global.set_m_metadata_total_rate (-1);
-            stats_map[data_session] = stats_global;
-            Logging::log_debug ("Deleting session in data_sessions_:" + data_session);
-            data_sessions_.erase (data_session);
-        }
-
-        auto end = std::chrono::steady_clock::now ();
-
-        if (i < 4) {
-            std::this_thread::sleep_for (microseconds (this->m_feedback_loop_sleep_time
-                - std::chrono::duration_cast<std::chrono::microseconds> (end - start).count ()));
-        }
-    }
-
-    return Status::OK;
-}
-
+// fill_socket_info call: Defines a new individual socket for data plane stage.
 PStatus LocalControlApplication::fill_socket_info (StageResponseHandshake* handshake_ptr,
     std::string& socket_info)
 {
@@ -841,6 +796,19 @@ PStatus LocalControlApplication::fill_socket_info (StageResponseHandshake* hands
     socket_info = stream.str ();
 
     return status;
+}
+
+void LocalControlApplication::parse_rule (const std::string& rule,
+    std::vector<std::string>* tokens,
+    const char c)
+{
+    size_t start;
+    size_t end = 0;
+
+    while ((start = rule.find_first_not_of (c, end)) != std::string::npos) {
+        end = rule.find (c, start);
+        tokens->push_back (rule.substr (start, end - start));
+    }
 }
 
 } // namespace cheferd

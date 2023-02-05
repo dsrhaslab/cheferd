@@ -1,6 +1,5 @@
 /**
- *   Written by Ricardo Macedo.
- *   Copyright (c) 2020 INESC TEC.
+ *   Copyright (c) 2022 INESC TEC.
  **/
 
 #include <cheferd/utils/rules_file_parser.hpp>
@@ -58,8 +57,6 @@ RuleType RulesFileParser::get_rule_type () const
     return this->m_rules_type;
 }
 
-// MISSING:
-//  readRulesFromFile - store rules in a map, pointing to the respective Stage identifier
 // parse_rule call. Auxiliary method for parsing a line and store its contents in a container
 void RulesFileParser::parse_rule (const std::string& rule, std::vector<std::string>* tokens)
 {
@@ -118,7 +115,8 @@ HousekeepingOperation RulesFileParser::convert_housekeeping_operation (const std
     }
 }
 
-// convert_object_type call. Convert a string to the respective EnforcementObjectType.
+// convert_object_type call. Convert a string to the respective EnforcementObjectType and
+// vice-versa.
 EnforcementObjectType RulesFileParser::convert_object_type (const std::string& object_type)
 {
     return (object_type == "drl") ? EnforcementObjectType::DRL : EnforcementObjectType::NOOP;
@@ -129,7 +127,7 @@ std::string RulesFileParser::convert_object_type (const EnforcementObjectType& o
     return (object_type == EnforcementObjectType::DRL) ? "drl" : "noop";
 }
 
-// convertEnforcementOperation call. Convert a string to an enforcement operation.
+// convertEnforcementOperation call. Convert a string to an enforcement operation and vice-versa.
 int RulesFileParser::convert_enforcement_operation (const EnforcementObjectType& object_type,
     const std::string& operation)
 {
@@ -165,7 +163,8 @@ std::string RulesFileParser::convert_enforcement_operation (const int& operation
     }
 }
 
-// convert_context_type_definition call. Convert string-based ContextType value to long.
+// convert_context_type_definition call. Convert string-based ContextType value to long and
+// vice-versa.
 int RulesFileParser::convert_context_type_definition (const std::string& context_type)
 {
     switch (cheferd::hash (context_type.data ())) {
@@ -208,7 +207,7 @@ std::string RulesFileParser::convert_context_type_definition (const ContextType&
 }
 
 // convert_differentiation_definitions call. Convert I/O differentiation and classification
-// definitions from string to long.
+// definitions from string to long and vice-versa.
 long RulesFileParser::convert_differentiation_definitions (const std::string& context_type,
     const std::string& definition)
 {
@@ -253,7 +252,7 @@ std::string RulesFileParser::convert_differentiation_definitions (const ContextT
 }
 
 // convert_paio_general_definitions call. Convert PAIO_GENERAL differentiation definitions from
-// string to long.
+// string to long and vice-versa.
 long RulesFileParser::convert_paio_general_definitions (const std::string& general_definitions)
 {
     switch (cheferd::hash (general_definitions.data ())) {
@@ -288,7 +287,7 @@ std::string RulesFileParser::convert_paio_general_definitions (
 }
 
 // convert_posix_lsm_simple_definitions call. Convert POSIX_KVS_LSM_SIMPLE differentiation
-// definitions from string to long.
+// definitions from string to long and vice-versa.
 long RulesFileParser::convert_posix_lsm_simple_definitions (
     const std::string& posix_lsm_definitions)
 {
@@ -324,7 +323,7 @@ std::string RulesFileParser::convert_posix_lsm_simple_definitions (
 }
 
 // convert_posix_lsm_detailed_definitions call. Convert POSIX_KVS_LSM_DETAILED differentiation
-// definitions from string to long.
+// definitions from string to long and vice-versa.
 long RulesFileParser::convert_posix_lsm_detailed_definitions (
     const std::string& posix_lsm_definitions)
 {
@@ -375,7 +374,8 @@ std::string RulesFileParser::convert_posix_lsm_detailed_definitions (
     }
 }
 
-// convert_posix_definitions call. Convert POSIX differentiation definitions from string to long.
+// convert_posix_definitions call. Convert POSIX differentiation definitions from string to long and
+// vice-versa.
 long RulesFileParser::convert_posix_definitions (const std::string& posix_definitions)
 {
     switch (cheferd::hash (posix_definitions.data ())) {
@@ -617,7 +617,7 @@ std::string RulesFileParser::convert_posix_definitions (const POSIX& posix_defin
 }
 
 // convert_posix_meta_definitions call. Convert POSIX_META differentiation definitions from string
-// to long.
+// to long and vice-versa.
 long RulesFileParser::convert_posix_meta_definitions (const std::string& posix_meta_definitions)
 {
     switch (cheferd::hash (posix_meta_definitions.data ())) {
@@ -675,7 +675,8 @@ std::string RulesFileParser::convert_posix_meta_definitions (
     }
 }
 
-// convert_kvs_definitions call. Convert KVS differentiation definitions from string to long.
+// convert_kvs_definitions call. Convert KVS differentiation definitions from string to long and
+// vice-versa.
 long RulesFileParser::convert_kvs_definitions (const std::string& kvs_definitions)
 {
     switch (cheferd::hash (kvs_definitions.data ())) {
@@ -746,7 +747,7 @@ int RulesFileParser::get_create_channel_rules (std::vector<HousekeepingCreateCha
         if (operation == HousekeepingOperation::create_channel) {
             // verify if total of elements in staged rule are complete
             if (staged_rule.size () < this->m_create_channel_rules_min_elements) {
-                Logging::log_error ("Error while reading staged rule and creating "
+                Logging::log_error ("RulesFileParser: Error while reading staged rule and creating "
                                     "HousekeepingRule object (missing elements)");
             } else {
                 // emplace the enum ContextType of which the operation definitions respect to, and
@@ -795,7 +796,7 @@ int RulesFileParser::get_create_object_rules (std::vector<HousekeepingCreateObje
         if (operation == HousekeepingOperation::create_object) {
             // verify if total of elements in staged rule are complete
             if (staged_rule.size () < this->m_create_object_rules_min_elements) {
-                Logging::log_error ("Error while reading staged rule and creating "
+                Logging::log_error ("RulesFileParser: Error while reading staged rule and creating "
                                     "HousekeepingRule object (missing elements)");
             } else {
                 HousekeepingCreateObjectRaw object_rule {};
@@ -821,43 +822,6 @@ int RulesFileParser::get_create_object_rules (std::vector<HousekeepingCreateObje
                     break;
                 }
             }
-        }
-    }
-
-    return rules_passed;
-}
-
-// get_enforcement_rules call. Convert stage rules of type ENF to the respective RAW structure.
-int RulesFileParser::get_enforcement_rules (std::vector<EnforcementRuleRaw>& enf_rules,
-    int total_rules)
-{
-    int rules_passed = 0;
-
-    if (total_rules == -1) {
-        total_rules = std::numeric_limits<int>::max ();
-    }
-
-    for (auto& staged_rule : this->m_staged_rules) {
-        // convert string to enforcement operation type
-        int operation_type
-            = this->convert_enforcement_operation (this->convert_object_type (staged_rule[3]),
-                staged_rule[4]);
-
-        EnforcementRuleRaw enforcement_rule {};
-        enforcement_rule.m_rule_id = std::stoll (staged_rule[0]);
-        enforcement_rule.m_channel_id = std::stol (staged_rule[1]);
-        enforcement_rule.m_enforcement_object_id = std::stol (staged_rule[2]);
-        enforcement_rule.m_enforcement_operation = operation_type;
-        enforcement_rule.m_property_first = std::stol (staged_rule[5]);
-        if (operation_type == 2) {
-            enforcement_rule.m_property_second = std::stol (staged_rule[6]);
-        }
-
-        enf_rules.push_back (enforcement_rule);
-        rules_passed++;
-
-        if (rules_passed == total_rules) {
-            break;
         }
     }
 

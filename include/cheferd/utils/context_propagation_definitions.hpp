@@ -1,6 +1,5 @@
 /**
- *   Written by Ricardo Macedo.
- *   Copyright (c) 2020-2021 INESC TEC.
+ *   Copyright (c) 2022 INESC TEC.
  **/
 
 #ifndef PAIO_CONTEXT_PROPAGATION_DEFINITIONS_HPP

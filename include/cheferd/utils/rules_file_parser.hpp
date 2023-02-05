@@ -1,6 +1,5 @@
 /**
- *   Written by Ricardo Macedo.
- *   Copyright (c) 2020 INESC TEC.
+ *   Copyright (c) 2022 INESC TEC.
  **/
 
 #ifndef CHEFERD_RULES_FILE_PARSER_HPP
@@ -27,6 +26,10 @@ namespace cheferd {
  */
 enum class RuleType { housekeeping = 1, differentiation = 2, enforcement = 3, noop = 0 };
 
+/**
+ * RulesFileParser class.
+ * RulesFileParser processes rules file.
+ */
 class RulesFileParser {
 
 private:
@@ -61,7 +64,7 @@ public:
 
     /**
      * convert_object_type: Convert string-based object type into the respective
-     * EnforcementObjectType classifier.
+     * EnforcementObjectType classifier and vice-versa.
      * @param object_type String-based enforcement object type.
      * @return Returns the respective EnforcementObjectType; returns ::NOOP for unlisted types.
      */
@@ -71,7 +74,7 @@ public:
 
     /**
      * convert_enforcement_operation: Convert string-based enforcement operations into a listed
-     * integer, based on the respective EnforcementObjectType.
+     * integer, based on the respective EnforcementObjectType and vice-versa.
      * @param object_type EnforcementObjectType of the operation to be executed.
      * @param operation String-based operation type.
      * @return Returns an integer that corresponds to the respective enforcement operation
@@ -84,8 +87,7 @@ public:
 
     /**
      * convert_context_type_definition: Convert a string-based ContextType object to the
-     * corresponding long value. Currently, it supports the following ContextType objects:
-     * PAIO_GENERAL, POSIX, LSM_KVS_SIMPLE, LSM_KVS_DETAILED, and KVS.
+     * corresponding long value and vice-versa.
      * @param context_type String-based ContextType object.
      * @return Returns the corresponding long value of the ContextType; if the object is not
      * recognized, it returns -1.
@@ -96,7 +98,7 @@ public:
 
     /**
      * convert_differentiation_definitions: Convert I/O classification and differentiation
-     * definitions from string-based format to the corresponding long value.
+     * definitions from string-based format to the corresponding long value and vice-versa.
      * @param context_type String-based ContextType object, to select the correct conversion
      * method to use.
      * @param definition String-based definition for the I/O differentiation.
@@ -110,7 +112,7 @@ public:
 
     /**
      * convert_paio_general_definitions: Convert PAIO_GENERAL differentiation definitions from a
-     * string-based format to the corresponding long value.
+     * string-based format to the corresponding long value and vice-versa.
      * @param general_definitions String-based definition of a PAIO_GENERAL element for the I/O
      * differentiation.
      * @return Returns the corresponding long value of the I/O definition.
@@ -121,7 +123,7 @@ public:
 
     /**
      * convert_posix_lsm_simple_definitions: Convert LSM_KVS_SIMPLE differentiation
-     * definitions from a string-based format to the corresponding long value.
+     * definitions from a string-based format to the corresponding long value and vice-versa.
      * @param posix_lsm_definitions String-based definition of a LSM_KVS_SIMPLE element for
      * the I/O differentiation.
      * @return Returns the corresponding long value of the I/O definition.
@@ -133,7 +135,7 @@ public:
 
     /**
      * convert_posix_lsm_detailed_definitions: Convert LSM_KVS_DETAILED differentiation
-     * definitions from a string-based format to the corresponding long value.
+     * definitions from a string-based format to the corresponding long value and vice-versa.
      * @param posix_lsm_definitions String-based definition of a LSM_KVS_DETAILED element for
      * the I/O differentiation.
      * @return Returns the corresponding long value of the I/O definition.
@@ -145,7 +147,7 @@ public:
 
     /**
      * convert_posix_definitions: Convert POSIX differentiation definitions from a string-based
-     * format to the corresponding long value.
+     * format to the corresponding long value and vice-versa.
      * @param posix_definitions String-based definition of a POSIX element for the I/O
      * differentiation.
      * @return Returns the corresponding long value of the I/O definition.
@@ -156,7 +158,7 @@ public:
 
     /**
      * convert_posix_meta_definitions: Convert POSIX_META differentiation definitions from a
-     * string-based format to the corresponding long value.
+     * string-based format to the corresponding long value and vice-versa.
      * @param posix_meta_definitions String-based definition of a POSIX_META element for the I/O
      * differentiation.
      * @return Returns the corresponding long value of the I/O definition.
@@ -167,7 +169,7 @@ public:
 
     /**
      * convert_kvs_definitions: Convert KVS differentiation definitions from a string-based format
-     * to the corresponding long value.
+     * to the corresponding long value and vice-versa.
      * @param kvs_definitions String-based definition of a KVS element for the I/O differentiation.
      * @return Returns the corresponding long value of the I/O definition.
      */
@@ -219,17 +221,6 @@ public:
      */
     int get_create_object_rules (std::vector<HousekeepingCreateObjectRaw>& hsk_rules,
         int total_rules);
-
-    /**
-     * get_enforcement_rules: read raw enforcement rules from staged_rules_ and
-     * store them in enf_rules.
-     * @param enf_rules Reference to a container that stores the RAW enforcement
-     * rules structure.
-     * @param total_rules Number of rules to store in the container (-1 indicate
-     * to pass all rules).
-     * @return Returns the number of rules stored in the container.
-     */
-    int get_enforcement_rules (std::vector<EnforcementRuleRaw>& enf_rules, int total_rules);
 
     /**
      * erase_rules: Remove all rules stored in the staged_rules_ container.

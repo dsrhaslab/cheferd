@@ -1,26 +1,27 @@
 /**
- *   Copyright (c) 2020 INESC TEC.
+ *   Copyright (c) 2022 INESC TEC.
  **/
 
 #ifndef CHEFERD_STAGE_RESPONSE_STATS_HPP
 #define CHEFERD_STAGE_RESPONSE_STATS_HPP
 
+#include "stage_response.hpp"
+
 #include <memory>
 #include <unordered_map>
-
-#include "stage_response.hpp"
 
 namespace cheferd {
 
 /**
  * StageResponseStats class.
- * Complete me ...
+ * StageResponseStats is used for responses that hold statistics from multiple data plane stages.
+ * Currently, the StageResponseStats class contains the following variables:
+ * - m_stats_ptr: container used for mapping a data plane stage to its collected statistics.
  */
 class StageResponseStats : public StageResponse {
 
 private:
 public:
-    /*TODO: Make this private*/
     std::unique_ptr<std::unordered_map<std::string, std::unique_ptr<StageResponse>>> m_stats_ptr;
 
     /**
@@ -30,10 +31,9 @@ public:
 
     /**
      * StageResponseStats parameterized constructor.
-     * @param response_type
-     * @param rate_fg_tasks
+     * @param response_type Type of response.
+     * @param mStats_ptr Container used for mapping a data plane stage to its collected statistics.
      */
-
     StageResponseStats (const int& response_type,
         std::unique_ptr<std::unordered_map<std::string, std::unique_ptr<StageResponse>>>&
             mStats_ptr);
@@ -44,14 +44,14 @@ public:
     ~StageResponseStats () override;
 
     /**
-     * ResponseType: ...
-     * @return
+     * ResponseType: Get response's type.
+     * @return Type of response.
      */
     int ResponseType () const override;
 
     /**
-     * toString: ...
-     * @return
+     * toString: Converts response to string.
+     * @return Response in string format.
      */
     std::string toString () const override;
 };

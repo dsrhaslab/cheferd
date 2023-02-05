@@ -1,6 +1,5 @@
 /**
- *   Written by Ricardo Macedo.
- *   Copyright (c) 2020 INESC TEC.
+ *   Copyright (c) 2022 INESC TEC.
  **/
 
 #ifndef CHEFERD_OPTIONS_HPP
@@ -42,54 +41,18 @@ enum class OperationContext {
  * at system creation.
  */
 const std::string option_housekeeping_rules_file_path_ = "../files/posix_housekeeping_rules_file";
-//    = "home/acb11912na/db/cheferd/files/posix_housekeeping_rules_file";
 
 const std::string option_housekeeping_rules_file_path_posix_static
     = "../files/posix_layer_housekeeping_rules_static_op";
-//    = "home/acb11912na/db/cheferd/files/posix_housekeeping_rules_file";
 
 const std::string option_housekeeping_rules_file_path_posix_dynamic
     = "../files/posix_layer_housekeeping_rules_dynamic";
-//    = "home/acb11912na/db/cheferd/files/posix_housekeeping_rules_file";
 
 const std::string option_housekeeping_rules_file_path_posix_metadata_data
     = "../files/posix_layer_housekeeping_rules_static_data_metadata";
-//    = "home/acb11912na/db/cheferd/files/posix_housekeeping_rules_file";
 
 const std::string option_housekeeping_rules_file_path_posix_total
     = "../files/posix_layer_housekeeping_rules_static_total";
-//    = "home/acb11912na/db/cheferd/files/posix_housekeeping_rules_file";
-
-/**
- * Default EnforcementRules file.
- * This parameter points to the path of the default rules to enforce at system
- * creation.
- */
-const std::string option_differentiation_rules_file_path_
-    = "/Users/ricardomacedo/Projects/sds-data-plane/cheferd/files/"
-      "default_differentiation_rules_file";
-//            "/home/gsd/db/cheferd/files/default_differentiation_rules_file";
-
-/**
- * Default EnforcementRules file.
- * This parameter points to the path of the default rules to enforce at system
- * creation.
- */
-const std::string option_enforcement_rules_file_path_
-    = "/Users/ricardomacedo/Projects/sds-data-plane/cheferd/files/"
-      "default_enforcement_rules_file_v2";
-//            "/home/gsd/db/cheferd/files/default_enforcement_rules_file_v2";
-
-/**
- * TensorFlow's HousekeepingRules file.
- * This parameter points to the path of the TensorFlow rules to insert and
- * enforce at system creation.
- */
-const std::string option_tensorflow_housekeeping_rules_file_path_
-    = "../files/tensorflow_housekeeping_rules_file";
-//"/Users/ricardomacedo/Projects/sds-data-plane/cheferd/files/"
-//"tensorflow_housekeeping_rules_file";
-// "/home/gsd/db/cheferd/files/tensorflow_housekeeping_rules_file";
 
 /**
  * HousekeepingRules files.
@@ -126,30 +89,7 @@ const CommunicationType option_communication_ = CommunicationType::UNIX;
  * This parameter is defined "a priori", as Sysadmins are not able to change it
  * at runtime.
  */
-// ControllerType option_controller_ = ControllerType::CORE;
-
-/**
- * Default SOCKET_NAME for UNIX Domain Socket based communications.
- */
-const std::string option_socket_name_ = "/tmp/9Lq7BNBnBycd6nxy.socket";
-
-/**
- * Default SOCKET_NAME for UNIX Domain Socket based communications -- TensorFlow
- * use case.
- */
-const std::string option_socket_name_tf_1_ = "/tmp/paiotensorflow01.socket";
-const std::string option_socket_name_tf_2_ = "/tmp/paiotensorflow02.socket";
-const std::string option_socket_name_tf_3_ = "/tmp/paiotensorflow03.socket";
-const std::string option_socket_name_tf_4_ = "/tmp/paiotensorflow04.socket";
-
-/**
- * Default controller option.
- * This parameter is defined "a priori", as Sysadmins are not able to change it
- * at runtime.
- */
 const bool option_is_core_controller_ = false;
-
-const bool option_is_rocksdb_algorithm_ = false;
 
 /**
  * Default BACKLOG for UNIX Domain Socket based communications.
@@ -191,28 +131,6 @@ const long option_postpone_time_ = 2000;
  * at each feedback-loop cycle.
  */
 const uint64_t option_default_control_application_sleep = 1000000;
-
-/**
- * Default MAX_BANDWIDTH_BPS.
- * This parameter defines the maximum available bandwidth for the TensorFlow's
- * control algorithm.
- */
-const long option_max_bandwidth_bps = 1073741824;
-
-/**
- * Default INSTANCE_BANDWIDTH_BPS.
- * This parameter defines the bandwidth demand for each TensorFlow instance
- * (data plane stage). Since our objective is to provide equity and fairness,
- * the instance bandwidth must be even for all stages.
- */
-const long option_instance_bandwidth_bps = 262144000;
-
-/**
- * Default calibrate token-buckets option.
- * This parameter defines if calibration of the token-buckets will be performed,
- * after assigning/computing the rate for each Data Plane stage.
- */
-const bool option_calibrate_token_buckets = true;
 
 } // namespace cheferd
 

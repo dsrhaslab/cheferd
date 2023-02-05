@@ -1,13 +1,12 @@
 /**
- *   Written by Ricardo Macedo.
- *   Copyright (c) 2020 INESC TEC.
+ *   Copyright (c) 2022 INESC TEC.
  **/
 
 #include <cheferd/session/data_plane_session.hpp>
 
 namespace cheferd {
 
-// DataPlaneSession default constructor.
+// DataPlaneSession parameterized constructor.
 DataPlaneSession::DataPlaneSession (const char* socket_name) : session_id_ { 0 }, interface_ {}
 {
     PrepareUnixConnection (socket_name);
@@ -24,35 +23,34 @@ DataPlaneSession::DataPlaneSession (long id, const char* socket_name) :
 // DataPlaneSession default destructor.
 DataPlaneSession::~DataPlaneSession () = default;
 
+// PrepareUnixConnection call. Prepare UNIX Domain socket connections
+// between the control plane and the data plane stage (single).
 void DataPlaneSession::PrepareUnixConnection (const char* socket_name)
 {
     unlink (socket_name);
 
     if ((server_fd_ = socket (AF_UNIX, SOCK_STREAM, 0)) == 0) {
-        Logging::log_error ("Socket creation error.");
+        Logging::log_error ("DataPlaneSession: Socket creation error.");
         exit (EXIT_FAILURE);
     }
-
-    //    setsockopt(server_fd_,SOL_SOCKET,SO_REUSEADDR|SO_REUSEPORT|SO_NOSIGPIPE,&opt,sizeof(opt));
 
     unix_socket_.sun_family = AF_UNIX;
     strncpy (unix_socket_.sun_path, socket_name, sizeof (unix_socket_.sun_path) - 1);
 
     if (bind (server_fd_, (struct sockaddr*)&unix_socket_, sizeof (unix_socket_)) < 0) {
-        Logging::log_error ("Bind error.");
+        Logging::log_error ("DataPlaneSession: Bind error.");
         working_session_ = false;
     }
 
     if (listen (server_fd_, 3) < 0) {
-        Logging::log_error ("Listen error.");
+        Logging::log_error ("DataPlaneSession: Listen error.");
         working_session_ = false;
     }
 
     addrlen_ = sizeof (unix_socket_);
 }
 
-// StartSession() call. Start session between the controller and the data plane
-// stage.
+// StartSession call. Start session execution.
 void DataPlaneSession::StartSession ()
 {
     Logging::log_debug ("DataPlaneSession::StartSession");
@@ -62,7 +60,8 @@ void DataPlaneSession::StartSession ()
     // verify socket value
     socket_t == -1 ? Logging::log_error ("DataPlaneSession: failed to connect with "
                                          "data plane stage {UNIX}.")
-                   : Logging::log_debug ("New data plane stage connection established {UNIX}.");
+                   : Logging::log_debug ("DataPlaneSession: New data plane stage connection "
+                                         "established {UNIX}.");
 
     if (socket_t != -1) {
         working_session_ = true;
@@ -82,17 +81,16 @@ void DataPlaneSession::StartSession ()
         }
     }
 
-    Logging::log_debug ("DataPlaneSession :: Exiting data plane stage session.");
+    Logging::log_debug ("DataPlaneSession: Exiting data plane stage session.");
 }
 
-// SendRule call. Submit rule to the data plane stage.
+// SendRule call. Handle the rule to be submitted to the data plane stage.
 PStatus
 DataPlaneSession::SendRule (int socket, const std::string& rule, ControlOperation* operation)
 {
     // parse rule
     if (!rule.empty ()) {
         std::string token = rule.substr (0, rule.find ('|'));
-        std::cout << "Token: " << token << "\n";
         operation->m_operation_type = std::stoi (token);
     }
 
@@ -111,7 +109,6 @@ DataPlaneSession::SendRule (int socket, const std::string& rule, ControlOperatio
         }
 
         case STAGE_READY: {
-            std::cout << "STAGE_READY ...\n";
             operation->m_size = sizeof (struct StageReadyRaw);
             // create temporary StageReadyRaw struct
             StageReadyRaw stage_ready {};
@@ -126,7 +123,6 @@ DataPlaneSession::SendRule (int socket, const std::string& rule, ControlOperatio
         }
 
         case CREATE_HSK_RULE: {
-            std::cout << "CREATE_HSK_RULE ... \n";
             // create temporary ACK structure
             ACK ack {};
             // invoke SouthboundInterface's CreateHousekeepingRule
@@ -187,13 +183,11 @@ DataPlaneSession::SendRule (int socket, const std::string& rule, ControlOperatio
 
                     if (status.isOk ()) {
                         // enqueue response of data plane stage from collect_tensorflow_statistics
-                        // request
                         EnqueueResponseInCompletionQueue (
                             std::make_unique<StageResponseStat> (COLLECT_GLOBAL_STATS,
                                 stats_global.m_total_rate));
                     } else {
                         // enqueue response of data plane stage from collect_tensorflow_statistics
-                        // request
                         EnqueueResponseInCompletionQueue (
                             std::make_unique<StageResponseStat> (COLLECT_GLOBAL_STATS, -1));
                     }
@@ -201,7 +195,7 @@ DataPlaneSession::SendRule (int socket, const std::string& rule, ControlOperatio
                 }
 
                 default:
-                    Logging::log_error ("After parsing -- other rule");
+                    Logging::log_error ("DataPlaneSession: After parsing -- other rule");
                     return PStatus::Error ();
             }
             break;
@@ -209,52 +203,41 @@ DataPlaneSession::SendRule (int socket, const std::string& rule, ControlOperatio
 
         default:
             status = PStatus::NotSupported ();
-            Logging::log_error ("PAI/O Interface:.SendRule -- rule not supported.");
+            Logging::log_error ("DataPlaneSession:.SendRule -- rule not supported.");
             break;
     }
 
-    //        std::cout << "Object removed ...\n";
     return status;
 }
 
+// RemoveSession call. Stop session execution.
 void DataPlaneSession::RemoveSession ()
 {
     working_session_ = false;
     EnqueueRuleInSubmissionQueue ("");
 }
 
-// EnqueueRuleInSubmissionQueue call. Enqueue rule in the submission_queue.
+// EnqueueRuleInSubmissionQueue call. Enqueue rule in the submission_queue_ in
+// string-based format.
 void DataPlaneSession::EnqueueRuleInSubmissionQueue (const std::string& rule)
 {
-    // Logging::log_debug("DataPlaneSession :: Enqueueue to dequeue");
-
     std::unique_lock<std::mutex> lock_t { submission_queue_lock_ };
     submission_queue_.emplace (rule);
     submission_queue_condition_.notify_one ();
-
-    // Logging::log_debug("DataPlaneSession :: Enqueueue to dequeue2");
 }
 
-// Missing: add wait_for and cv_status to exit the condition when we need to terminate the
-//  execution ... DequeueRuleFromSubmissionQueue call. Dequeue rule from the submission_queue.
+// DequeueRuleFromSubmissionQueue call. Dequeue rule from the submission_queue_
+// in string-based format.
 PStatus DataPlaneSession::DequeueRuleFromSubmissionQueue (std::string& rule)
 {
     std::unique_lock<std::mutex> lock_t { submission_queue_lock_ };
     PStatus status_t = PStatus::Error ();
 
-    // Logging::log_debug("DataPlaneSession :: 1Dequeueue to dequeue");
-
     while (working_session_.load () && submission_queue_.empty ()) {
-        // Logging::log_debug("DataPlaneSession :: 2Dequeueue to dequeue");
-
         submission_queue_condition_.wait (lock_t);
-        // Logging::log_debug("DataPlaneSession :: 3Dequeueue to dequeue");
     }
 
-    // Logging::log_debug("DataPlaneSession :: 4Dequeueue to dequeue");
-
     if (working_session_.load ()) {
-        // Logging::log_debug("DataPlaneSession :: 5Dequeueue to dequeue");
         rule = submission_queue_.front ();
         submission_queue_.pop ();
         status_t = PStatus::OK ();
@@ -263,8 +246,8 @@ PStatus DataPlaneSession::DequeueRuleFromSubmissionQueue (std::string& rule)
     return status_t;
 }
 
-// Missing: probably some marshaling and unmarshaling needs to be done in this method
-//  EnqueueResponseInCompletionQueue call. Enqueue response in the completion_queue.
+// EnqueueResponseInCompletionQueue call. Enqueue response in the completion_queue_
+// in StageResponse format.
 void DataPlaneSession::EnqueueResponseInCompletionQueue (
     std::unique_ptr<StageResponse> response_object)
 {
@@ -273,14 +256,13 @@ void DataPlaneSession::EnqueueResponseInCompletionQueue (
     completion_queue_condition_.notify_one ();
 }
 
-// Missing: add wait_for and cv_status to exit the condition when we need to terminate the execution
-//  DequeueResponseFromCompletionQueue call. Dequeue response from the completion_queue.
+// DequeueResponseFromCompletionQueue call. Dequeue response from the
+// completion_queue_ in StageResponse format.
 std::unique_ptr<StageResponse> DataPlaneSession::DequeueResponseFromCompletionQueue ()
 {
     std::unique_lock<std::mutex> lock_t { completion_queue_lock_ };
 
     while (completion_queue_.empty ()) {
-
         completion_queue_condition_.wait (lock_t);
     }
 
@@ -290,13 +272,13 @@ std::unique_ptr<StageResponse> DataPlaneSession::DequeueResponseFromCompletionQu
     return response_t;
 }
 
-//    GetSubmissionQueueSize call. Return the size of the submission_queue.
+// getSubmissionQueueSize call. Get the total size of the submission_queue.
 int DataPlaneSession::getSubmissionQueueSize ()
 {
     return submission_queue_.size ();
 }
 
-//    SubmitRule call. Submit rules to the Session.
+// SubmitRule call. Submit rules to the Session.
 PStatus DataPlaneSession::SubmitRule (const std::string& submission_rule)
 {
     PStatus status_t = PStatus::Error ();
@@ -307,12 +289,13 @@ PStatus DataPlaneSession::SubmitRule (const std::string& submission_rule)
     return status_t;
 }
 
-//    GetResult call. Get results from the Session.
+// GetResult call. Pop result objects (StageResponse) from the Session.
 std::unique_ptr<StageResponse> DataPlaneSession::GetResult ()
 {
     return DequeueResponseFromCompletionQueue ();
 }
 
+// SessionIdentifier call. Get session identifier.
 long DataPlaneSession::SessionIdentifier () const
 {
     return session_id_;

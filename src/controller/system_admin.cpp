@@ -1,23 +1,29 @@
+/**
+ *   Copyright (c) 2022 INESC TEC.
+ **/
+
 #include "cheferd/controller/system_admin.hpp"
 
 namespace cheferd {
 
+// SystemAdmin default constructor.
 SystemAdmin::SystemAdmin (ControlType control_type) : m_control_type { control_type }
 { }
 
+// SystemAdmin default destructor.
 SystemAdmin::~SystemAdmin ()
 { }
 
+// operator call. SystemAdmin execution. Reads rules from inputted file, and submits them
+// to control application.
 void SystemAdmin::operator() (CoreControlApplication* m_control_application)
 {
-
     std::vector<std::vector<std::string>> m_staged_rules {};
 
     std::string line;
     std::ifstream input_stream;
 
     int total_rules = 0;
-    // open file stream
 
     switch (m_control_type) {
         case ControlType::STATIC: {
@@ -80,7 +86,6 @@ void SystemAdmin::operator() (CoreControlApplication* m_control_application)
         }
 
         // Submit to queue in Control
-
         Logging::log_debug ("SystemAdmin: Rule submitted " + enf_rule);
         m_control_application->enqueue_rule_in_queue (enf_rule);
     }

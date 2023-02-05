@@ -1,5 +1,5 @@
 /**
- *   Copyright (c) 2020 INESC TEC.
+ *   Copyright (c) 2022 INESC TEC.
  **/
 
 #ifndef CHEFERD_STAGE_RESPONSE_STAT_HPP
@@ -9,9 +9,12 @@
 
 namespace cheferd {
 
+
 /**
- * StageResponseStatsTF class.
- * Complete me ...
+ * StageResponseStat class.
+ * StageResponseStat is used for responses that hold a single data plane stage statistic.
+ * Currently, the StageResponseStat class contains the following variables:
+ * - m_value: data plane stage total rate.
  */
 class StageResponseStat : public StageResponse {
 private:
@@ -19,37 +22,37 @@ private:
 
 public:
     /**
-     * StageResponseStatsGlobal default constructor.
+     * StageResponseStat default constructor.
      */
     StageResponseStat ();
 
     /**
-     * StageResponseStatsGlobal parameterized constructor.
-     * @param response_type
-     * @param rate_fg_tasks
+     * StageResponseStat parameterized constructor.
+     * @param response_type Type of response.
+     * @param total_rate Data plane stage total rate.
      */
     StageResponseStat (const int& response_type, const double& total_rate);
 
     /**
-     * StageResponseStatsGlobal default destructor.
+     * StageResponseStat default destructor.
      */
     ~StageResponseStat () override;
 
     /**
-     * ResponseType: ...
-     * @return
+     * ResponseType: Get response's type.
+     * @return Type of response.
      */
     int ResponseType () const override;
 
     /**
-     * RateFgTasks: ...
-     * @return
+     * get_total_rate: Get data plane stage total rate.
+     * @return Data plane stage's total rate.
      */
     double get_total_rate () const;
 
     /**
-     * toString: ...
-     * @return
+     * toString: Converts response to string.
+     * @return Response in string format.
      */
     std::string toString () const override;
 };
