@@ -838,9 +838,9 @@ std::string CoreControlApplication::update_job_demands ()
                 job_demands.emplace (job_name, std::stol (tokens[4]));
             }
         }
+	
+	active_op = operation;
     }
-
-    active_op = operation;
 
     return operation;
 }
