@@ -75,7 +75,7 @@ const std::string option_static_rules_with_time_file_path_user
     = "../files/static_rules_with_time_file_user";
 
 const std::string option_dynamic_rules_with_time_file_path_
-    = "../files/dynamic_rules_with_time_file";
+    = "../files/static_rules_with_time_file_job";
 
 /**
  * Default communication option.
