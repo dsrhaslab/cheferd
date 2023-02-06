@@ -9,7 +9,7 @@
   </a>
 </h3>
 
-Cheferd is a storage manager that has system-wide visibility over storage resources in order to hollistically orchestrate and manage storage resources.
+Cheferd is a storage manager that is able to hollistically orchestrate and manage storage resources.
 It follows hierarchical design, where the controllers have different responsibilities depending on their control level. This prototype is composed by two types of controllers - global and local.
 
 * <b>Global controller:</b> Controller with system-wide visibility and the ability to holistically orchestrate the storage services. Collects monitoring metrics from the system (e.g., workflows’ rate) and enforces new policies to respond to workload variations or new rules set by system administrators.
