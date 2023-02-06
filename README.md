@@ -10,7 +10,8 @@
 </h3>
 
 Cheferd is a storage manager that is able to hollistically orchestrate and manage storage resources.
-It follows hierarchical design, where the controllers have different responsibilities depending on their control level. This prototype is composed by two types of controllers - global and local.
+
+The current prototype follows hierarchical design, where the controllers have different responsibilities depending on their control level. This prototype is composed by two types of controllers - global and local.
 
 * <b>Global controller:</b> Controller with system-wide visibility and the ability to holistically orchestrate the storage services. Collects monitoring metrics from the system (e.g., workflows’ rate) and enforces new policies to respond to workload variations or new rules set by system administrators.
 * <b>Local controller:</b> Manages the data plane stages, serving as a liaison between the global controller and its corresponding data plane stages. Thus, offloading some of the global controller's load. 
