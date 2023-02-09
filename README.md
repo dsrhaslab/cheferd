@@ -66,7 +66,7 @@ To deploy a cheferd controller use the following commmand:
 Depending on the configuration following, it assumes certain proprieties. 
 Please check the following examples for a global controller and a local controller.
 
-#### Global controller
+#### Global controller configuration example:
 ```yaml
 controller: core                                                            # Type of controller (core or local)
 core_address: 0.0.0.0:50051                                                 # Global controller address
@@ -89,7 +89,7 @@ policies_rules_file: ../files/static_rules_with_time_file_job               # Pa
 3 60 job app1 meta_op 10000
 ```
 
-#### Local controller
+#### Local controller configuration example:
 ```yaml
 controller: local                                                           # Type of controller (core or local)
 core_address: 0.0.0.0:50051                                                 # Global controller address
