@@ -84,9 +84,9 @@ policies_rules_file: ../files/static_rules_with_time_file_job               # Pa
 
 *Policies rules file example:*
 ```shell
-1 20 job padll-stage meta_op 5000     # <rule_id> <time_to_enforce> <app_name> <context> <limit>
-2 40 job padll-stage meta_op 7500                   
-3 60 job padll-stage meta_op 10000
+1 20 job app1 meta_op 5000     # <rule_id> <time_to_enforce> <app_name> <context> <limit>
+2 40 job app1 meta_op 7500                   
+3 60 job app1 meta_op 10000
 ```
 
 #### Local controller
@@ -97,6 +97,51 @@ local_address: 0.0.0.0:50053                                                # Lo
 ```
 
 
+## Control Type
+
+#### 1: Static:
+Set a job's I/O limits. 
+
+*Policies rules file example:*
+```shell
+1 10 job app1 getxattr 5000       # Limit app1's getxattr operations to 5000 IOPS
+<or>
+1 10 job app1 meta_op 5000        # Limit app1's metadata operations to 5000 IOPS
+```
+
+*Global controller configuration example:*
+```shell
+...
+control_type: 1
+...
+```
+
+
+#### Dynamic:
+
+* <b> 2: Vanilla (Proportional Sharing) </b>
+
+Max-min fair share control algorithm that enforces per-job rate reservations. 
+
+
+* <b> 3: Dynamic without Leftover (Proportional Sharing without False Allocation) </b>
+
+Proportional sharing algorithm that prevents false resource allocation to ensure storage QoS under volatile workloads.
+
+Rather than assigning resource shares exclusively based on the number of active jobs in the system and their demands, we consider the actual usage (i.e., I/O load) of each job and redistribute resources in a max-min fair share manner based on those observations.
+
+*Policies rules file example:*
+```shell
+1 0 demand app1 meta_op 30000       # Demand 30000 IOPS for app1's metadata operations
+```
+
+*Global controller configuration example:*
+```shell
+...
+control_type: 2 <or> 3
+system_limit: 220000 
+...
+```
 
 ***
 
